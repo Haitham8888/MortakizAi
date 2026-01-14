@@ -192,9 +192,6 @@
                 };
             });
         }
-
-        let conversationStarted = false;
-
         function addMessage(text, isAi) {
             const div = document.createElement('div');
             div.className = `message ${isAi ? 'ai-msg' : 'user-msg'}`;
@@ -276,7 +273,7 @@
                 const response = await fetch('/v1/chat/completions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: [{ role: 'user', content: text }] })
+                    body: JSON.stringify({ messages: [{ role: 'user', content: combined }] })
                 });
 
                 const reader = response.body.getReader();
