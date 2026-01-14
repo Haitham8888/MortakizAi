@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MortakizAi | مَرْتَكَز</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <header class="shadow-md">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between max-w-5xl gap-4">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🛡️</span>
+                <div>
+                    <p id="subtitleText" class="text-sm text-slate-400">مساعد البرمجة المحلي</p>
+                    <p id="titleText" class="text-xl font-semibold text-sky-400">مَرْتَكَز - MortakizAi</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="langToggle" class="lang-toggle" aria-label="تغيير اللغة">EN</button>
+                <span id="statusText" class="status-badge">متصل محلياً</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-6 max-w-5xl w-full">
+        <section class="panel">
+            <div class="panel__header">
+                <p id="panelTitle" class="text-slate-200 font-semibold">المحادثة</p>
+                <p id="panelSubtitle" class="text-sm text-slate-400">اسأل عن الأكواد، التصحيحات، أو الاقتراحات</p>
+            </div>
+
+            <div id="chatBox" class="chat-container">
+                <div class="message ai-msg">...</div>
+            </div>
+
+            <div class="panel__footer">
+                <div class="input-wrapper">
+                    <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
+                    <button id="sendBtn" class="send-btn">إرسال</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const langToggle = document.getElementById('langToggle');
+        const titleText = document.getElementById('titleText');
+        const subtitleText = document.getElementById('subtitleText');
+        const statusText = document.getElementById('statusText');
+        const panelTitle = document.getElementById('panelTitle');
+        const panelSubtitle = document.getElementById('panelSubtitle');
+
+        const translations = {
+            ar: {
+                dir: 'rtl',
+                lang: 'ar',
+                title: 'مَرْتَكَز - MortakizAi',
+                subtitle: 'مساعد البرمجة المحلي',
+                status: 'متصل محلياً',
+                panelTitle: 'المحادثة',
+                panelSubtitle: 'اسأل عن الأكواد، التصحيحات، أو الاقتراحات',
+                placeholder: 'اكتب سؤالك هنا...',
+                send: 'إرسال',
+                welcome: 'أهلاً بك! أنا "مَرْتَكَز"، ذكاؤك الاصطناعي المحلي. كيف يمكنني مساعدتك في الكود اليوم؟',
+                error: '⚠️ خطأ في الاتصال بالسيرفر.',
+                toggleLabel: 'EN'
+            },
+            en: {
+                dir: 'ltr',
+                lang: 'en',
+                title: 'MortakizAi',
+                subtitle: 'Local coding copilot',
+                status: 'Local connection',
+                panelTitle: 'Chat',
+                panelSubtitle: 'Ask for code, fixes, or suggestions',
+                placeholder: 'Type your question...',
+                send: 'Send',
+                welcome: 'Hi there! I\'m "Mortakiz", your local AI. How can I help with code today?',
+                error: '⚠️ Connection error with server.',
+                toggleLabel: 'عربي'
+            }
+        };
+
+        let currentLang = 'ar';
+
+        function addMessage(text, isAi) {
+            const div = document.createElement('div');
+            div.className = `message ${isAi ? 'ai-msg' : 'user-msg'}`;
+            div.innerText = text;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return div;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            userInput.value = '';
+            userInput.focus();
+            addMessage(text, false);
+            sendBtn.disabled = true;
+
+            const aiDiv = addMessage('...', true);
+            let fullText = '';
+
+            try {
+                const response = await fetch('/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: [{ role: 'user', content: text }] })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                aiDiv.innerText = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                            const data = JSON.parse(line.substring(6));
+                            const content = data.choices[0].delta.content || '';
+                            fullText += content;
+                            aiDiv.innerText = fullText;
+                        }
+                    }
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            } catch (err) {
+                aiDiv.innerText = translations[currentLang].error;
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        sendBtn.onclick = sendMessage;
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function applyLanguage(lang) {
+            const t = translations[lang];
+            currentLang = lang;
+            document.documentElement.lang = t.lang;
+            document.documentElement.dir = t.dir;
+            document.body.classList.toggle('dir-ltr', lang === 'en');
+            document.body.classList.toggle('dir-rtl', lang === 'ar');
+            titleText.textContent = t.title;
+            subtitleText.textContent = t.subtitle;
+            statusText.textContent = t.status;
+            panelTitle.textContent = t.panelTitle;
+            panelSubtitle.textContent = t.panelSubtitle;
+            userInput.placeholder = t.placeholder;
+            sendBtn.textContent = t.send;
+            langToggle.textContent = t.toggleLabel;
+
+            const firstAiMessage = chatBox.querySelector('.ai-msg');
+            if (firstAiMessage) firstAiMessage.textContent = t.welcome;
+        }
+
+        langToggle.addEventListener('click', () => {
+            const nextLang = currentLang === 'ar' ? 'en' : 'ar';
+            applyLanguage(nextLang);
+            userInput.focus();
+        });
+
+        applyLanguage('ar');
+        userInput.focus();
+    </script>
+</body>
+</html>
