@@ -1,0 +1,12 @@
+{
+  "models": [
+    {
+      "title": "Qwen Coder Local",
+      "provider": "openai",
+      "model": "qwen-coder",
+      "apiBase": "http://127.0.0.1:8000/v1",
+      "apiKey": "local"
+    }
+  ],
+  "defaultModel": "Qwen Coder Local"
+}

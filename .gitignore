@@ -1,0 +1,83 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Models Cache - too large for git
+models_cache/
+drivers/
+
+# Downloaded packages for offline installation
+packages_offline/
+*.tar.gz
+python_packages_*.tar.gz
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Uploads
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Chat History & AI Notes
+chat_history/
+ai_notes.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+app.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test Code
+Test Code/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.backup
+*.old
+*.bak
+
+# Environment variables
+.env
+.env.local
+
+# Jupyter
+.ipynb_checkpoints
