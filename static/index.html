@@ -8,38 +8,69 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <div class="bg-accent-glow"></div>
     <header class="shadow-md">
         <div class="container mx-auto px-4 py-4 flex items-center justify-between max-w-5xl gap-4">
-            <div class="flex items-center gap-2">
-                <span class="text-2xl">🛡️</span>
+            <div class="flex items-center gap-3">
+                <div class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2 4 6v5c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V6l-8-4Z"/>
+                        <path d="M9 12h6"/>
+                        <path d="M12 9v6"/>
+                    </svg>
+                </div>
                 <div>
-                    <p id="subtitleText" class="text-sm text-slate-400">مساعد البرمجة المحلي</p>
+                    <p id="subtitleText" class="text-xs sm:text-sm text-slate-400">مساعد البرمجة المحلي</p>
                     <p id="titleText" class="text-xl font-semibold text-sky-400">مَرْتَكَز - MortakizAi</p>
                 </div>
             </div>
             <div class="flex items-center gap-3">
+                <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+                    <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+                    </svg>
+                    <svg id="iconSun" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22 5.64 5.64M18.36 18.36 19.78 19.78M1 12h2M21 12h2M4.22 19.78 5.64 18.36M18.36 5.64 19.78 4.22"/>
+                    </svg>
+                </button>
                 <button id="langToggle" class="lang-toggle" aria-label="تغيير اللغة">EN</button>
                 <span id="statusText" class="status-badge">متصل محلياً</span>
             </div>
         </div>
     </header>
 
-    <main class="flex-grow container mx-auto px-4 py-6 max-w-5xl w-full">
-        <section class="panel">
+    <main class="flex-grow container mx-auto px-4 py-10 max-w-6xl w-full">
+        <section id="hero" class="hero">
+            <p id="heroTitle" class="hero__title">ما الذي تريد البدء به؟</p>
+            <div id="heroInput" class="hero__input">
+                    <button class="icon-btn" aria-hidden="true" id="uploadBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12h14" />
+                    </svg>
+                </button>
+                <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
+                <div class="hero__actions">
+                    <button id="sendBtn" class="send-circle" aria-label="إرسال" title="إرسال">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m3 11 18-8-8 18-2-7-8-3Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="chatPanel" class="panel minimal hidden">
             <div class="panel__header">
-                <p id="panelTitle" class="text-slate-200 font-semibold">المحادثة</p>
-                <p id="panelSubtitle" class="text-sm text-slate-400">اسأل عن الأكواد، التصحيحات، أو الاقتراحات</p>
+                <div>
+                    <p id="panelTitle" class="text-slate-200 font-semibold">المحادثة</p>
+                    <p id="panelSubtitle" class="text-sm text-slate-400">اسأل عن الأكواد، التصحيحات، أو الاقتراحات</p>
+                </div>
+                <div class="chip">Beta</div>
             </div>
 
             <div id="chatBox" class="chat-container">
                 <div class="message ai-msg">...</div>
-            </div>
-
-            <div class="panel__footer">
-                <div class="input-wrapper">
-                    <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
-                    <button id="sendBtn" class="send-btn">إرسال</button>
-                </div>
             </div>
         </section>
     </main>
@@ -54,6 +85,17 @@
         const statusText = document.getElementById('statusText');
         const panelTitle = document.getElementById('panelTitle');
         const panelSubtitle = document.getElementById('panelSubtitle');
+        const hero = document.getElementById('hero');
+        const heroInput = document.getElementById('heroInput');
+        const chatPanel = document.getElementById('chatPanel');
+        const themeToggle = document.getElementById('themeToggle');
+        const iconMoon = document.getElementById('iconMoon');
+        const iconSun = document.getElementById('iconSun');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.multiple = true;
+        fileInput.accept = '.txt,.md,.py,.js,.ts,.json,.yaml,.yml,.html,.css,.cpp,.c,.h,.java,.cs,.go,.rs,.php,.rb,.sh,.ps1,.sql,.xml,.docx';
 
         const translations = {
             ar: {
@@ -68,7 +110,9 @@
                 send: 'إرسال',
                 welcome: 'أهلاً بك! أنا "مَرْتَكَز"، ذكاؤك الاصطناعي المحلي. كيف يمكنني مساعدتك في الكود اليوم؟',
                 error: '⚠️ خطأ في الاتصال بالسيرفر.',
-                toggleLabel: 'EN'
+                toggleLabel: 'EN',
+                copy: 'نسخ',
+                copied: 'تم النسخ'
             },
             en: {
                 dir: 'ltr',
@@ -82,28 +126,147 @@
                 send: 'Send',
                 welcome: 'Hi there! I\'m "Mortakiz", your local AI. How can I help with code today?',
                 error: '⚠️ Connection error with server.',
-                toggleLabel: 'عربي'
+                toggleLabel: 'عربي',
+                copy: 'Copy',
+                copied: 'Copied'
             }
         };
 
         let currentLang = 'ar';
+        let conversationStarted = false;
+        let attachments = [];
+        const THEME_KEY = 'mortakiz-theme';
+
+        function applyTheme(mode) {
+            const theme = mode === 'light' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            iconMoon.classList.toggle('hidden', theme === 'light');
+            iconSun.classList.toggle('hidden', theme === 'dark');
+            localStorage.setItem(THEME_KEY, theme);
+        }
+
+        (function initTheme() {
+            const saved = localStorage.getItem(THEME_KEY);
+            applyTheme(saved || 'dark');
+        })();
+
+        function escapeHTML(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderContent(raw, el) {
+            const parts = raw.split(/```/);
+            let html = '';
+
+            parts.forEach((part, idx) => {
+                if (idx % 2 === 0) {
+                    const text = escapeHTML(part).replace(/\n/g, '<br>');
+                    if (text.trim().length) html += `<div class="msg-text">${text}</div>`;
+                } else {
+                    const code = part.trim();
+                    html += `
+                        <div class="code-block">
+                            <button class="copy-btn" data-copy>${translations[currentLang].copy}</button>
+                            <pre><code>${escapeHTML(code)}</code></pre>
+                        </div>
+                    `;
+                }
+            });
+
+            el.innerHTML = html || '<div class="msg-text">…</div>';
+
+            el.querySelectorAll('[data-copy]').forEach(btn => {
+                btn.onclick = () => {
+                    const codeEl = btn.nextElementSibling?.querySelector('code');
+                    if (!codeEl) return;
+                    navigator.clipboard.writeText(codeEl.textContent).then(() => {
+                        const original = btn.textContent;
+                        btn.textContent = translations[currentLang].copied;
+                        setTimeout(() => (btn.textContent = translations[currentLang].copy), 1200);
+                    });
+                };
+            });
+        }
+
+        let conversationStarted = false;
 
         function addMessage(text, isAi) {
             const div = document.createElement('div');
             div.className = `message ${isAi ? 'ai-msg' : 'user-msg'}`;
-            div.innerText = text;
+            renderContent(text, div);
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
+            updateHeroState();
+            if (!conversationStarted && !isAi) {
+                conversationStarted = true;
+                revealChat();
+            }
             return div;
+        }
+
+        function updateHeroState() {
+            const hasUserMessages = chatBox.querySelector('.user-msg');
+            hero.classList.toggle('hero--compact', !!hasUserMessages);
+        }
+
+        function revealChat() {
+            chatPanel.classList.remove('hidden');
+            heroInput.classList.add('hidden');
+        }
+
+        function renderAttachments() {
+            let holder = document.getElementById('attachments');
+            if (!holder) {
+                holder = document.createElement('div');
+                holder.id = 'attachments';
+                holder.className = 'attachments';
+                hero.appendChild(holder);
+            }
+            holder.innerHTML = '';
+            attachments.forEach((att, idx) => {
+                const chip = document.createElement('div');
+                chip.className = 'attach-chip';
+                chip.innerHTML = `
+                    <span class="attach-name">${att.name}</span>
+                    <button aria-label="remove" data-idx="${idx}" class="attach-remove">×</button>
+                `;
+                holder.appendChild(chip);
+            });
+            holder.classList.toggle('hidden', attachments.length === 0);
+            holder.classList.toggle('attachments--list', true);
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/v1/history');
+                if (!res.ok) return;
+                const data = await res.json();
+                const history = data.messages || [];
+                if (history.length) {
+                    chatBox.innerHTML = '';
+                    conversationStarted = true;
+                    revealChat();
+                    history.forEach(msg => addMessage(msg.content || '', msg.role !== 'user'));
+                }
+            } catch (e) {
+                // ignore history failures
+            }
         }
 
         async function sendMessage() {
             const text = userInput.value.trim();
-            if (!text) return;
+            const contextFromFiles = attachments.map(a => `ملف: ${a.name}\n${a.content}`).join('\n\n');
+            const combined = contextFromFiles ? `${text}\n\n${contextFromFiles}` : text;
+            if (!combined) return;
 
             userInput.value = '';
             userInput.focus();
-            addMessage(text, false);
+            addMessage(combined, false);
             sendBtn.disabled = true;
 
             const aiDiv = addMessage('...', true);
@@ -132,21 +295,27 @@
                             const data = JSON.parse(line.substring(6));
                             const content = data.choices[0].delta.content || '';
                             fullText += content;
-                            aiDiv.innerText = fullText;
+                            renderContent(fullText, aiDiv);
                         }
                     }
                     chatBox.scrollTop = chatBox.scrollHeight;
                 }
             } catch (err) {
-                aiDiv.innerText = translations[currentLang].error;
+                renderContent(translations[currentLang].error, aiDiv);
             } finally {
                 sendBtn.disabled = false;
+                attachments = [];
+                renderAttachments();
             }
         }
 
         sendBtn.onclick = sendMessage;
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
+        });
+        themeToggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            applyTheme(current === 'dark' ? 'light' : 'dark');
         });
 
         function applyLanguage(lang) {
@@ -162,11 +331,12 @@
             panelTitle.textContent = t.panelTitle;
             panelSubtitle.textContent = t.panelSubtitle;
             userInput.placeholder = t.placeholder;
-            sendBtn.textContent = t.send;
+            sendBtn.setAttribute('title', t.send);
+            sendBtn.setAttribute('aria-label', t.send);
             langToggle.textContent = t.toggleLabel;
 
             const firstAiMessage = chatBox.querySelector('.ai-msg');
-            if (firstAiMessage) firstAiMessage.textContent = t.welcome;
+            if (firstAiMessage) renderContent(t.welcome, firstAiMessage);
         }
 
         langToggle.addEventListener('click', () => {
@@ -175,8 +345,36 @@
             userInput.focus();
         });
 
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            const form = new FormData();
+            files.forEach(f => form.append('files', f));
+            try {
+                const res = await fetch('/v1/upload', { method: 'POST', body: form });
+                const data = await res.json();
+                const received = data.files || [];
+                attachments = attachments.concat(received);
+                renderAttachments();
+            } catch (err) {
+                // ignore upload errors
+            } finally {
+                fileInput.value = '';
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.attach-remove');
+            if (!btn) return;
+            const idx = Number(btn.dataset.idx);
+            attachments.splice(idx, 1);
+            renderAttachments();
+        });
+
         applyLanguage('ar');
         userInput.focus();
+        loadHistory();
     </script>
 </body>
 </html>
