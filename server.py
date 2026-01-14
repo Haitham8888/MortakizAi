@@ -1,21 +1,15 @@
 import torch
 import uvicorn
 import json
-import asyncio
 import os
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, BitsAndBytesConfig
 from threading import Thread
 
 # --- إعدادات الهوية والمسارات ---
 PROJECT_NAME = "مَرْتَكَز - MortakizAi"
-# الكود سيبحث في المسارين المحتملين ويختار الموجود منهما
-path_options = [
-    "./models_cache/models--Qwen--Qwen2.5-Coder-7B-Instruct",
-    "./qwen-coder"
-]
-
+path_options = ["./models_cache/models--Qwen--Qwen2.5-Coder-7B-Instruct", "./qwen-coder"]
 MODEL_PATH = ""
 for p in path_options:
     if os.path.exists(p):
@@ -23,117 +17,169 @@ for p in path_options:
         break
 
 if not MODEL_PATH:
-    raise RuntimeError("❌ خطأ: لم يتم العثور على مجلد الموديل. تأكد من وجوده بجانب الملف.")
+    raise RuntimeError("❌ لم يتم العثور على مجلد الموديل.")
 
-# 1. فحص العتاد (GPU Detection)
+# 1. فحص العتاد
 device_count = torch.cuda.device_count()
 vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
 gpu_name = torch.cuda.get_device_name(0)
 
-print(f"🚀 [ {PROJECT_NAME} ] يبدأ العمل الآن...")
-print(f"🖥️ العتاد المكتشف: {gpu_name} ({vram_gb:.2f} GB VRAM)")
+print(f"🚀 [ {PROJECT_NAME} ] يبدأ العمل...")
 
-# 2. استراتيجية التحميل (Adaptive Strategy)
-loading_kwargs = {
-    "device_map": "auto",
-    "trust_remote_code": True,
-}
-
+# 2. استراتيجية التحميل
+loading_kwargs = {"device_map": "auto", "trust_remote_code": True}
 if vram_gb > 20:
-    print("🔥 نمط الأداء الأقصى مفعل (Full BF16)...")
     loading_kwargs["torch_dtype"] = torch.bfloat16
-    try:
-        import flash_attn
-        loading_kwargs["attn_implementation"] = "flash_attention_2"
-    except ImportError:
-        loading_kwargs["attn_implementation"] = "sdpa"
 else:
-    print("💡 نمط الحفاظ على الذاكرة مفعل (4-bit)...")
     loading_kwargs["quantization_config"] = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_use_double_quant=True
+        load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=True
     )
-    loading_kwargs["attn_implementation"] = "sdpa"
 
-# 3. تحميل الـ Tokenizer والموديل
-print(f"📦 جاري شحن ملفات الموديل من المسار المطلق...")
+# 3. تحميل الموديل والـ Tokenizer
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, fix_mistral_regex=True)
 model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **loading_kwargs)
 
-# تحديد رموز التوقف لمنع الهذيان والتكرار
-stop_tokens = ["<|im_end|>", "<|endoftext|>", "###", "Instruction:", "Response:"]
+stop_tokens = ["<|im_end|>", "<|endoftext|>", "###"]
 
 app = FastAPI()
 
-def clean_messages(messages):
-    """تنظيف وتوحيد مدخلات Cline"""
-    cleaned = []
-    for msg in messages:
-        role = msg.get("role")
-        content = msg.get("content")
-        if isinstance(content, list):
-            content = " ".join([item.get("text", "") if isinstance(item, dict) else str(item) for item in content])
-        cleaned.append({"role": role, "content": content})
-    return cleaned
+# --- واجهة الويب (HTML UI) ---
+CHAT_HTML = """
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MortakizAi | مَرْتَكَز</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .chat-container { height: 75vh; overflow-y: auto; scrollbar-width: thin; }
+        .message { max-width: 80%; padding: 12px 16px; border-radius: 15px; margin-bottom: 10px; }
+        .user-msg { background-color: #1e293b; align-self: flex-start; margin-right: auto; }
+        .ai-msg { background-color: #334155; align-self: flex-end; margin-left: auto; border-left: 4px solid #38bdf8; }
+        pre { background: #000; padding: 10px; border-radius: 8px; overflow-x: auto; color: #10b981; direction: ltr; text-align: left; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <header class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
+        <h1 class="text-xl font-bold text-sky-400">🛡️ مَرْتَكَز - MortakizAi</h1>
+        <span class="text-xs bg-sky-900 text-sky-200 px-2 py-1 rounded">متصل محلياً</span>
+    </header>
+
+    <main class="flex-grow container mx-auto p-4 max-w-4xl">
+        <div id="chatBox" class="chat-container flex flex-col space-y-4 p-2">
+            <div class="message ai-msg">أهلاً بك يا هيثم! أنا "مَرْتَكَز"، ذكاؤك الاصطناعي المحلي. كيف يمكنني مساعدتك في الكود اليوم؟</div>
+        </div>
+    </main>
+
+    <footer class="p-4 bg-slate-900 border-t border-slate-700">
+        <div class="container mx-auto max-w-4xl flex gap-2">
+            <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." class="w-full p-3 bg-slate-800 border border-slate-600 rounded-lg focus:outline-none focus:border-sky-500">
+            <button id="sendBtn" class="bg-sky-600 hover:bg-sky-500 px-6 py-2 rounded-lg font-bold transition">إرسال</button>
+        </div>
+    </footer>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function addMessage(text, isAi) {
+            const div = document.createElement('div');
+            div.className = `message ${isAi ? 'ai-msg' : 'user-msg'}`;
+            div.innerText = text;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return div;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+            
+            userInput.value = '';
+            addMessage(text, false);
+            
+            const aiDiv = addMessage("...", true);
+            let fullText = "";
+
+            try {
+                const response = await fetch('/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: [{ role: 'user', content: text }] })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                aiDiv.innerText = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                            const data = JSON.parse(line.substring(6));
+                            const content = data.choices[0].delta.content || "";
+                            fullText += content;
+                            aiDiv.innerText = fullText;
+                        }
+                    }
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            } catch (err) {
+                aiDiv.innerText = "⚠️ خطأ في الاتصال بالسيرفر.";
+            }
+        }
+
+        sendBtn.onclick = sendMessage;
+        userInput.onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+    </script>
+</body>
+</html>
+"""
+
+# --- نقاط النهاية (API Endpoints) ---
+
+@app.get("/", response_class=HTMLResponse)
+async def get_ui():
+    return CHAT_HTML
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     data = await request.json()
-    messages = clean_messages(data.get("messages", []))
+    messages = data.get("messages", [])
     
-    # تنسيق المدخلات حسب قالب Qwen الرسمي
-    input_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    # تنظيف سريع
+    cleaned = []
+    for m in messages:
+        content = m.get("content", "")
+        if isinstance(content, list): content = " ".join([str(i) for i in content])
+        cleaned.append({"role": m.get("role"), "content": content})
+
+    input_text = tokenizer.apply_chat_template(cleaned, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer([input_text], return_tensors="pt").to(model.device)
-    
     streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
-    # إعدادات التوليد المحسنة للأداء
-    generation_kwargs = dict(
-        **inputs,
-        streamer=streamer,
-        max_new_tokens=4096,
-        temperature=0.7,
-        do_sample=True,
-        top_p=0.9,
-        repetition_penalty=1.1, # يمنع تكرار نفس الجمل
-        eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.eos_token_id
-    )
-    
-    # بدء المعالجة في خيط منفصل
-    thread = Thread(target=model.generate, kwargs=generation_kwargs)
-    thread.start()
+    generation_kwargs = dict(**inputs, streamer=streamer, max_new_tokens=2048, temperature=0.7, do_sample=True)
+    Thread(target=model.generate, kwargs=generation_kwargs).start()
 
-    async def generate_chunks():
-        try:
-            # إرسال كائن الاستجابة الأولي لفتح القناة مع Cline
-            yield f"data: {json.dumps({'choices': [{'delta': {'role': 'assistant', 'content': ''}, 'index': 0}]})}\n\n"
-            
-            for new_text in streamer:
-                # التحقق إذا أغلق المستخدم النافذة في VSCode
-                if await request.is_disconnected():
-                    print("🔌 تم قطع الاتصال.. إيقاف التوليد.")
-                    break
-                
-                # التحقق من كلمات التوقف يدوياً لزيادة الدقة
-                if any(stop_word in new_text for stop_word in stop_tokens):
-                    break
+    async def generate():
+        yield f"data: {json.dumps({'choices': [{'delta': {'role': 'assistant', 'content': ''}}]})}\\n\\n"
+        for text in streamer:
+            if await request.is_disconnected(): break
+            if any(s in text for s in stop_tokens): break
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\\n\\n"
+        yield "data: [DONE]\\n\\n"
 
-                if new_text:
-                    chunk = {"choices": [{"delta": {"content": new_text}, "index": 0}]}
-                    yield f"data: {json.dumps(chunk)}\n\n"
-            
-            yield "data: [DONE]\n\n"
-        except Exception as e:
-            print(f"⚠️ تنبيه بسيط: {e}")
-
-    return StreamingResponse(generate_chunks(), media_type="text/event-stream")
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 if __name__ == "__main__":
-    mode_info = "High-Power" if vram_gb > 20 else "Efficient 4-bit"
-    print(f"✅ [ {PROJECT_NAME} ] جاهز الآن على http://localhost:8000")
-    print(f"⚙️ النمط النشط: {mode_info}")
-    # log_level='error' لإبقاء التيرمينال نظيفاً من طلبات الـ HTTP
+    print(f"✅ [ {PROJECT_NAME} ] جاهز!")
+    print(f"🌐 واجهة الويب متاحة على: http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="error")
