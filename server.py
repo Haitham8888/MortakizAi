@@ -23,14 +23,21 @@ if not MODEL_PATH:
 
 # 1. فحص العتاد
 device_count = torch.cuda.device_count()
-vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-gpu_name = torch.cuda.get_device_name(0)
+if device_count > 0:
+    vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+    gpu_name = torch.cuda.get_device_name(0)
+else:
+    vram_gb = 0
+    gpu_name = "CPU"
 
 print(f"🚀 [ {PROJECT_NAME} ] يبدأ العمل...")
+print(f"🖥️ الجهاز: {gpu_name} | CUDA: {device_count} | VRAM: {vram_gb:.1f} GB")
 
 # 2. استراتيجية التحميل
 loading_kwargs = {"device_map": "auto", "trust_remote_code": True}
-if vram_gb > 20:
+if device_count == 0:
+    loading_kwargs = {"device_map": {"": "cpu"}, "torch_dtype": torch.float32, "trust_remote_code": True}
+elif vram_gb > 20:
     loading_kwargs["torch_dtype"] = torch.bfloat16
 else:
     loading_kwargs["quantization_config"] = BitsAndBytesConfig(
