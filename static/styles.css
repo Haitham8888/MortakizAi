@@ -878,62 +878,41 @@ header .theme-toggle:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
-/* ===== Code Block Styling (ChatGPT Style) ===== */
+/* ===== Code Block Styling ===== */
 .code-block {
     background: #0d0d0d;
     border-radius: 8px;
-    margin: 16px 0;
+    margin: 12px 0;
     overflow: hidden;
-    font-family: 'Söhne Mono', Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
 }
 
 .code-block-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 16px;
+    height: 36px;
+    padding: 0 16px;
     background: #2f2f2f;
-    color: #b4b4b4;
-    font-size: 0.8rem;
 }
 
 .code-block-lang {
-    font-family: 'Söhne Mono', Monaco, monospace !important;
-    text-transform: lowercase;
-}
-
-.code-block pre {
-    margin: 0;
-    padding: 16px;
-    background: #0d0d0d;
-    overflow-x: auto;
-}
-
-.code-block pre code {
-    font-family: 'Söhne Mono', Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
-    font-size: 0.875rem;
-    line-height: 1.6;
-    color: #f8f8f2;
-    white-space: pre;
-    display: block;
+    color: #b4b4b4;
+    font-size: 12px;
 }
 
 .copy-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 8px;
-    background: transparent;
+    padding: 0;
+    background: none;
     color: #b4b4b4;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
-    font-size: 0.8rem;
-    transition: all 0.15s ease;
+    font-size: 12px;
 }
 
 .copy-btn:hover { 
-    background: rgba(255, 255, 255, 0.1);
     color: #fff;
 }
 
@@ -942,4 +921,20 @@ header .theme-toggle:hover {
     height: 16px;
 }
 
-.copy-btn:active { transform: scale(0.95); }
+.code-block pre {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+    direction: ltr;
+    text-align: left;
+    background: #0d0d0d;
+}
+
+.code-block pre code {
+    font-family: Menlo, Monaco, Consolas, 'Courier New', monospace !important;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #fff;
+    white-space: pre;
+    display: block;
+}
