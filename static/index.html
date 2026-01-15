@@ -73,7 +73,7 @@
                     </svg>
                 </button>
                 <div id="attachments" class="inline-attachments hidden"></div>
-                <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
+                <textarea id="userInput" placeholder="اكتب سؤالك هنا..." class="input-field" rows="1" autocomplete="off"></textarea>
                 <div class="hero__actions">
                     <button id="sendBtn" class="send-circle" aria-label="إرسال" title="إرسال">
                         <svg class="icon-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -95,7 +95,7 @@
                         </svg>
                     </button>
                     <div id="chatAttachments" class="inline-attachments hidden"></div>
-                    <input type="text" id="userInputChat" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
+                    <textarea id="userInputChat" placeholder="اكتب سؤالك هنا..." class="input-field" rows="1" autocomplete="off"></textarea>
                     <button id="sendBtnChat" class="send-circle" aria-label="إرسال" title="إرسال">
                         <svg class="icon-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="m3 11 18-8-8 18-2-7-8-3Z"/>
@@ -725,12 +725,29 @@
 
         sendBtn.onclick = sendMessage;
         sendBtnChat.onclick = sendMessage;
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
+        
+        // دالة لتعديل ارتفاع textarea تلقائياً
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+        }
+        
+        // Shift+Enter للسطر الجديد، Enter للإرسال
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
         });
-        userInputChat.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
+        userInput.addEventListener('input', () => autoResize(userInput));
+        
+        userInputChat.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
         });
+        userInputChat.addEventListener('input', () => autoResize(userInputChat));
 
         function applyLanguage(lang) {
             const t = translations[lang];

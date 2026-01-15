@@ -518,6 +518,11 @@ body.dir-ltr .ai-msg {
     color: var(--text);
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    resize: none;
+    min-height: 24px;
+    max-height: 150px;
+    line-height: 1.5;
+    overflow-y: auto;
 }
 
 .input-field:focus { box-shadow: none; }

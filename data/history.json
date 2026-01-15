@@ -1,5 +1,41 @@
 {
   "127.0.0.1": {
-    "conversations": {}
+    "conversations": {
+      "408da6ba": {
+        "created_at": "2026-01-15T10:31:23.615436",
+        "title": "administrator@gpu-jrys:~/Continue$ source /home/ad",
+        "messages": [
+          {
+            "role": "user",
+            "content": "administrator@gpu-jrys:~/Continue$ source /home/administrator/Continue/.venv/bin/activate (.venv) administrator@gpu-jrys:~/Continue$ /home/administrator/Continue/.venv/bin/python /home/administrator/Continue/server.py 🚀 [ مَرْتَكَز - MortakizAi ] يبدأ العمل... 🖥️ الجهاز: NVIDIA RTX A4000 | CUDA: 1 | VRAM: 15.6 GB Loading checkpoint shards:  25%|█▎   | 1/4 [00:12<00:3Loading checkpoint shards:  50%|██▌  | 2/4 [00:25<00:2Loading checkpoint shards:  75%|███▊ | 3/4 [00:37<00:1Loading checkpoint shards: 100%|█████| 4/4 [00:38<00:0Loading checkpoint shards: 100%|█████| 4/4 [00:38<00:00,  9.75s/it] ✅ [ مَرْتَكَز - MortakizAi ] جاهز! 🌐 واجهة الويب متاحة على: http://localhost:8000"
+          },
+          {
+            "role": "assistant",
+            "content": "مرحبًا! يبدو أن لديك نموذج AI يعمل بشكل جيد الآن. إذا كنت تواجه أي مشكلات أو تحتاج إلى مزيد من المساعدة، فلا تتردد في طلبها. كيف يمكنني مساعدتك اليوم؟"
+          },
+          {
+            "role": "user",
+            "content": "(.venv) administrator@gpu-jrys:~/Continue$ /home/administrator/Continue/.venv/bin/python /home/administrator/Continue/server.py 🚀 [ مَرْتَكَز - MortakizAi ] يبدأ العمل... 🖥️ الجهاز: NVIDIA RTX A4000 | CUDA: 1 | VRAM: 15.6 GB Loading checkpoint shards: 100%|████████████████| 4/4 [00:39<00:00, 9.81s/it] ⚠️ Warning: tokenizer.pad_token is not set. Using eos_token as pad_token. ⚠️ torch_dtype float16 may cause overflow on long sequences.  Traceback (most recent call last):   File \"/home/administrator/Continue/server.py\", line 214, in <module>     model = load_model(MODEL_PATH, device)   File \"/home/administrator/Continue/server.py\", line 127, in load_model     outputs = model.generate(   File \"/home/administrator/Continue/.venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 115, in decorate_context     return func(*args, **kwargs)   File \"/home/administrator/Continue/.venv/lib/python3.12/site-packages/transformers/generation/utils.py\", line 1964, in generate     model_kwargs = self._prepare_model_inputs(   File \"/home/administrator/Continue/.venv/lib/python3.12/site-packages/transformers/generation/utils.py\", line 742, in _prepare_model_inputs     raise ValueError( ValueError: input_ids and attention_mask must have the same shape, but got input_ids: torch.Size([1, 4096]) and attention_mask: torch.Size([1, 2048])  During handling of the above exception, another exception occurred:  Traceback (most recent call last):   File \"/home/administrator/Continue/server.py\", line 221, in <module>     raise RuntimeError(\"Model initialization failed due to invalid tensor shapes\") RuntimeError: Model initialization failed due to invalid tensor shapes  ❌ [ مَرْتَكَز - MortakizAi ] فشل الإقلاع 🔍 السبب المحتمل: - اختلاف max_length بين tokenizer و model - أو تحميل attention_mask من كاش قديم - أو quantization غير متوافق مع dtype"
+          },
+          {
+            "role": "assistant",
+            "content": "من الأخطاء التي يبدو أنها قد تكون موجودة في البرنامج الخاص بك هي:\n\n1. الاختلاف في `max_length` بين التوكينزر والنموذج: هذا يعني أن القيمة التي تم استخدامها لتوليد النص قد تكون أكبر مما تم تكوين النموذج عليه.\n\n2. تحميل `attention_mask` من كاش قديم: قد يكون هناك خلل في تحميل الملفات أو قد يكون هناك نقص في ملفات الكاش.\n\n3. عدم توافق نوع البيانات (`dtype`) مع عملية التوسيع (quantization).\n\nللحل لهذه المشكلات، يمكنك القيام بالتحقق من التالي:\n\n- تأكد من أن القيم المستخدمة في توليد النص تتطابق مع تلك التي تم تكوين النموذج عليها.\n- تحقق من أن ملفات الكاش صالحة وأنها تم تحديثها بشكل صحيح.\n- تأكد من أن نوع البيانات (`dtype`) متوافق مع العملية التوسيع (quantization). \n\nإذا لم تتمكن من حل المشكلة، يمكنك مشاركة المزيد من الكود أو التفاصيل حتى أتمكن من مساعدتك بشكل أفضل."
+          },
+          {
+            "role": "user",
+            "content": "اجعل الكود اقوى"
+          },
+          {
+            "role": "assistant",
+            "content": "حسنًا، سأساعدك في تحسين الكود الخاص بك. من الصعب بدون رؤية الكود نفسه، ولكن يمكنني إعطاء بعض النصائح العامة حول كيفية تحسين الكود:\n\n1. **التعامل مع الاستثناءات**: تأكد من التعامل مع الاستثناءات بطريقة مناسبة. يمكنك استخدام `try-except` لالتوقع والتعامل مع الأخطاء المحتملة.\n\n2. **تحسين الأداء**: إذا كنت تتعامل مع بيانات كبيرة، فقد يكون من المفيد استخدام تقنيات تحسين الأداء مثل التجزئة أو الانبعاث-جمع (Distributed Computing).\n\n3. **تنظيم الكود**: ترتيب الكود بشكل منطقي ومتسامح يجعله أسهل للقراءة والصيانة.\n\n4. **استخدام المكتبات المناسبة**: تأكد من استخدام المكتبات الأكثر فائدة وأحدث لمهامك.\n\nإليك مثال على كيفية تعديل الكود باستخدام بعض هذه النصائح:\n\n```python\nimport os\nfrom transformers import AutoTokenizer, AutoModelForCausalLM\nimport torch\n\ndef load_model(model_path, device):\ntry:\ntokenizer = AutoTokenizer.from_pretrained(model_path)\nmodel = AutoModelForCausalLM.from_pretrained(model_path)\n\n# Ensure that the pad token is set correctly\nif tokenizer.pad_token is None:\ntokenizer.add_special_tokens({'pad_token': tokenizer.eos_token})\n\n# Move model to the specified device\nmodel.to(device)\n\nreturn model, tokenizer\nexcept Exception as e:\nprint(f\"Failed to load model due to {e}\")\nraise RuntimeError(\"Model initialization failed\")\n\ndef main():\nMODEL_PATH = \"/path/to/model\"\nDEVICE = \"cuda\" if torch.cuda.is_available() else \"cpu\"\n\ntry:\nmodel, tokenizer = load_model(MODEL_PATH, DEVICE)\n# Example generation\ninput_text = \"Hello, how are you?\"\ninputs = tokenizer(input_text, return_tensors=\"pt\").to(DEVICE)\noutputs = model.generate(inputs.input_ids, max_length=50)\ngenerated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)\n\nprint(generated_text)\nexcept Exception as e:\nprint(f\"An error occurred: {e}\")\n\nif __name__ == \"__main__\":\nmain()\n```\n\nفي هذا الكود المعدل، تم:\n\n1. **معالجة الاستثناءات**: استخدام `try-except` لالتوقع والتعامل مع أي استثناء يحدث أثناء تحميل النموذج.\n2. **ضبط رمز التوقف**: تم ضبط رمز التوقف (`pad_token`) بشكل مضمون.\n3. **نقل النموذج إلى الجهاز الصحيح**: تم نقل النموذج إلى الجهاز المحدد (`cuda` أو `cpu`).\n4. **تجربة التشغيل**: تم إضافة قسم `main()` لتشغيل البرنامج وإظهار النتائج.\n\nتأكد من أنك تقم بتغيير `MODEL_PATH` إلى المسار الصحيح حيث يوجد نموذجك. هذا مجرد مثال عام، وقد تحتاج إلى تكييفه بناءً على متطلبات مشروعك الخاصة."
+          }
+        ]
+      },
+      "c5ca53b2": {
+        "created_at": "2026-01-15T10:36:12.463223",
+        "title": "اجعل الكود اقوى وافضل وخالي من الاخطاء\n\nimport tor",
+        "messages": []
+      }
+    }
   }
 }
