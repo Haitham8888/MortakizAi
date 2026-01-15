@@ -139,6 +139,29 @@ def delete_conversation(ip: str, conv_id: str) -> bool:
     return False
 
 
+def create_conversation(ip: str, title: str = "محادثة") -> str:
+    """Create a new empty conversation and return its ID"""
+    data = _read_history()
+    user_data = data.get(ip, {})
+    
+    if isinstance(user_data, list):
+        user_data = {"conversations": {}}
+    
+    if "conversations" not in user_data:
+        user_data["conversations"] = {}
+    
+    conv_id = str(uuid.uuid4())[:8]
+    user_data["conversations"][conv_id] = {
+        "created_at": datetime.now().isoformat(),
+        "title": title[:50] if title else "محادثة",
+        "messages": []
+    }
+    
+    data[ip] = user_data
+    _write_history(data)
+    return conv_id
+
+
 def append_exchange(ip: str, user_text: str, assistant_text: str, conv_id: str = None) -> str:
     """Append messages to a conversation, returns conversation ID"""
     data = _read_history()
@@ -275,9 +298,9 @@ async def chat_completions(request: Request):
 
     async def generate():
         nonlocal full_text, new_conv_id
-        # Create conversation ID early if not provided
+        # Create conversation early if not provided (saves to file immediately)
         if not conv_id:
-            new_conv_id = str(uuid.uuid4())[:8]
+            new_conv_id = create_conversation(ip, user_text[:50] if user_text else "محادثة")
             yield f"data: {json.dumps({'conversation_id': new_conv_id})}\n\n"
         yield f"data: {json.dumps({'choices': [{'delta': {'role': 'assistant', 'content': ''}}]})}\n\n"
         for text in streamer:

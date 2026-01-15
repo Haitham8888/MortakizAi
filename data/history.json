@@ -1,1 +1,44 @@
-{}
+{
+  "127.0.0.1": [
+    {
+      "role": "user",
+      "content": "مرحبا"
+    },
+    {
+      "role": "assistant",
+      "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+    },
+    {
+      "role": "user",
+      "content": "كيف حالك ؟"
+    },
+    {
+      "role": "assistant",
+      "content": "أنا بخير، شكراً! كيف يمكنني مساعدتك اليوم؟"
+    },
+    {
+      "role": "user",
+      "content": "مرحبا"
+    },
+    {
+      "role": "assistant",
+      "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+    },
+    {
+      "role": "user",
+      "content": "كيف حالك ؟"
+    },
+    {
+      "role": "assistant",
+      "content": "أنا بخير، شكراً! كيف يمكنني مساعدتك اليوم؟"
+    },
+    {
+      "role": "user",
+      "content": "مرحبا"
+    },
+    {
+      "role": "assistant",
+      "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+    }
+  ]
+}
