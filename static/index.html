@@ -62,7 +62,7 @@
         </div>
     </header>
 
-    <main class="flex-grow container mx-auto px-4 max-w-4xl w-full flex flex-col">
+    <main class="flex-grow w-full flex flex-col">
         <!-- Hero Section - يظهر في البداية فقط -->
         <section id="hero" class="hero hero--centered">
             <p id="heroTitle" class="hero__title">ما الذي تريد البدء به؟</p>
@@ -229,28 +229,48 @@
                 if (idx % 2 === 0) {
                     const escaped = escapeHTML(part);
                     const formatted = formatMarkdown(escaped);
-                    if (formatted.trim().length) html += `<div class="msg-text">${formatted}</div>`;
+                    if (formatted.trim().length) html += `<div class="msg-text" dir="auto">${formatted}</div>`;
                 } else {
-                    const code = part.trim();
+                    // Extract language from first line if present
+                    const lines = part.split('\n');
+                    let lang = '';
+                    let code = part.trim();
+                    
+                    if (lines[0] && /^[a-zA-Z0-9_+-]+$/.test(lines[0].trim())) {
+                        lang = lines[0].trim().toLowerCase();
+                        code = lines.slice(1).join('\n').trim();
+                    }
+                    
+                    const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+                    
                     html += `
                         <div class="code-block">
-                            <button class="copy-btn" data-copy>${translations[currentLang].copy}</button>
+                            <div class="code-block-header">
+                                <span class="code-block-lang">${lang || 'code'}</span>
+                                <button class="copy-btn" data-copy>${copyIcon}<span>${translations[currentLang].copy}</span></button>
+                            </div>
                             <pre><code>${escapeHTML(code)}</code></pre>
                         </div>
                     `;
                 }
             });
 
-            el.innerHTML = html || '<div class="msg-text">…</div>';
+            el.innerHTML = html || '<div class="msg-text" dir="auto">…</div>';
 
             el.querySelectorAll('[data-copy]').forEach(btn => {
                 btn.onclick = () => {
-                    const codeEl = btn.nextElementSibling?.querySelector('code');
+                    const codeBlock = btn.closest('.code-block');
+                    const codeEl = codeBlock?.querySelector('pre code');
                     if (!codeEl) return;
+                    
+                    const checkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>`;
+                    const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+                    
                     navigator.clipboard.writeText(codeEl.textContent).then(() => {
-                        const original = btn.textContent;
-                        btn.textContent = translations[currentLang].copied;
-                        setTimeout(() => (btn.textContent = translations[currentLang].copy), 1200);
+                        btn.innerHTML = `${checkIcon}<span>${translations[currentLang].copied}</span>`;
+                        setTimeout(() => {
+                            btn.innerHTML = `${copyIcon}<span>${translations[currentLang].copy}</span>`;
+                        }, 2000);
                     });
                 };
             });
@@ -259,7 +279,7 @@
             const div = document.createElement('div');
             div.className = `message ${isAi ? 'ai-msg' : 'user-msg'}`;
             if (isHtml) {
-                div.innerHTML = `<div class="msg-text">${text}</div>`;
+                div.innerHTML = `<div class="msg-text" dir="auto">${text}</div>`;
             } else {
                 renderContent(text, div);
             }

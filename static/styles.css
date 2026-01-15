@@ -45,6 +45,37 @@
     font-family: var(--font-base) !important;
 }
 
+/* ===== Custom Scrollbar ===== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--muted);
+}
+
+::-webkit-scrollbar-corner {
+    background: var(--bg-secondary);
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-light) var(--bg-secondary);
+}
+
 html, body, button, input, textarea, select, option {
     font-family: var(--font-base) !important;
 }
@@ -335,18 +366,24 @@ header {
     height: auto;
     min-height: 0;
     overflow-y: auto;
-    padding: 20px;
+    padding: 24px 0;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 0;
 }
 
 .chat-input-wrapper {
-    background: var(--bg-secondary);
+    background: var(--bg);
     border-top: 1px solid var(--border);
-    padding: 16px;
+    padding: 16px calc(50% - 400px);
     position: sticky;
     bottom: 0;
+}
+
+@media (max-width: 900px) {
+    .chat-input-wrapper {
+        padding: 16px 24px;
+    }
 }
 
 .chat-input-bar {
@@ -410,8 +447,8 @@ header {
 
 .message {
     max-width: 100%;
-    padding: 12px 18px;
-    border-radius: 16px;
+    padding: 24px calc(50% - 400px);
+    border-radius: 0;
     line-height: 1.75;
     font-size: 1rem;
     border: none;
@@ -420,23 +457,22 @@ header {
     white-space: pre-wrap;
 }
 
+@media (max-width: 900px) {
+    .message {
+        padding: 24px 24px;
+    }
+}
+
 .user-msg {
-    background: var(--bubble-user);
-    align-self: flex-start;
-    margin-right: auto;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
     color: var(--text);
     font-weight: 500;
 }
 
 .ai-msg {
-    background: transparent;
-    align-self: flex-start;
-    margin-right: auto;
-    border-left: none;
-    position: relative;
-    padding: 20px 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
     color: var(--text);
 }
 
@@ -448,41 +484,10 @@ body.dir-ltr .ai-msg {
 .msg-text {
     color: var(--text);
     word-break: break-word;
+    text-align: start;
+    direction: auto;
+    unicode-bidi: plaintext;
 }
-
-.code-block {
-    position: relative;
-    margin-top: 10px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    background: var(--panel);
-}
-
-.code-block pre {
-    margin: 0;
-    padding: 14px;
-    background: transparent;
-    color: var(--text);
-    border: none;
-}
-
-.copy-btn {
-    position: absolute;
-    top: 10px;
-    inset-inline-end: 10px;
-    padding: 6px 10px;
-    background: var(--accent-muted);
-    color: var(--accent);
-    border: 1px solid rgba(92, 156, 230, 0.25);
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: opacity 0.2s ease, transform 0.1s ease;
-}
-
-.copy-btn:hover { opacity: 1; }
-.copy-btn:active { transform: translateY(1px); }
 
 .panel__footer {
     border-top: 1px solid var(--border);
@@ -873,38 +878,68 @@ header .theme-toggle:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
-/* ===== Code Block Styling ===== */
+/* ===== Code Block Styling (ChatGPT Style) ===== */
 .code-block {
-    background: #161616;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    margin: 12px 0;
-    position: relative;
+    background: #0d0d0d;
+    border-radius: 8px;
+    margin: 16px 0;
     overflow: hidden;
+    font-family: 'Söhne Mono', Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
+}
+
+.code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: #2f2f2f;
+    color: #b4b4b4;
+    font-size: 0.8rem;
+}
+
+.code-block-lang {
+    font-family: 'Söhne Mono', Monaco, monospace !important;
+    text-transform: lowercase;
 }
 
 .code-block pre {
     margin: 0;
     padding: 16px;
-    background: transparent;
+    background: #0d0d0d;
+    overflow-x: auto;
+}
+
+.code-block pre code {
+    font-family: 'Söhne Mono', Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #f8f8f2;
+    white-space: pre;
+    display: block;
 }
 
 .copy-btn {
-    position: absolute;
-    top: 10px;
-    inset-inline-end: 10px;
-    padding: 6px 12px;
-    background: var(--panel);
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: transparent;
+    color: #b4b4b4;
+    border: none;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 0.85rem;
-    transition: all 0.2s ease;
+    font-size: 0.8rem;
+    transition: all 0.15s ease;
 }
 
 .copy-btn:hover { 
-    background: var(--panel-hover);
-    color: var(--text);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
 }
-.copy-btn:active { transform: translateY(1px); }
+
+.copy-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.copy-btn:active { transform: scale(0.95); }

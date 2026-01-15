@@ -1,17 +1,25 @@
 {
   "127.0.0.1": {
     "conversations": {
-      "f207d1c9": {
-        "created_at": "2026-01-15T08:23:22.006131",
-        "title": "مرحبا",
+      "a4bde34d": {
+        "created_at": "2026-01-15T08:26:22.408765",
+        "title": "اكتب لي كود بالبايثون لإنشاء صفحة ويب خاصة بالدعم ",
         "messages": [
           {
             "role": "user",
-            "content": "مرحبا"
+            "content": "اكتب لي كود بالبايثون لإنشاء صفحة ويب خاصة بالدعم الفني"
           },
           {
             "role": "assistant",
-            "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+            "content": "بالطبع! يمكنك استخدام Flask أو Django لتوليد صفحة الويب للدعم الفني. في هذا المثال، سنستخدم Flask.\n\nأولاً، تأكد من أن لديك Flask مثبت. إذا لم يكن كذلك، يمكنك تثبيته باستخدام الأمر التالي:\n\n```\npip install Flask\n```\n\nثم، قم بإنشاء ملف باسم `app.py` وأضف الكود التالي فيه:\n\n```python\nfrom flask import Flask, render_template\n\napp = Flask(__name__)\n\n@app.route('/')\ndef index():\nreturn render_template('support.html')\n\nif __name__ == '__main__':\napp.run(debug=True)\n```\n\nهذا الكود يقوم بتكوين التطبيق Flask الأساسي ويقوم بتوجيه الطلبات إلى الصفحة الرئيسية (الصفحة التي تحتوي على دعم العملاء).\n\nإلى ذلك، ستحتاج إلى إنشاء ملف HTML لصفحة الدعم الفني. أضف ملف باسم `support.html` في مجلد `templates` داخل مشروعك:\n\n```html\n<!DOCTYPE html>\n<html lang=\"ar\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>دعم العملاء</title>\n<style>\nbody {\nfont-family: Arial, sans-serif;\nbackground-color: #f4f4f4;\nmargin: 0;\npadding: 20px;\n }\n.container {\nmax-width: 600px;\nmargin: auto;\nbackground-color: #fff;\npadding: 20px;\nbox-shadow: 0 0 10px rgba(0, 0, 0, 0.1);\n }\nh1 {\ntext-align: center;\n }\nform {\ndisplay: flex;\nflex-direction: column;\n }\nlabel {\nmargin-bottom: 5px;\n }\ninput[type=\"text\"], input[type=\"email\"], textarea {\npadding: 10px;\nmargin-bottom: 15px;\nborder: 1px solid #ccc;\nborder-radius: 3px;\n }\nbutton {\npadding: 10px;\nbackground-color: #007BFF;\ncolor: white;\nborder: none;\nborder-radius: 3px;\ncursor: pointer;\n }\nbutton:hover {\nbackground-color: #0056b3;\n }\n</style>\n</head>\n<body>\n<div class=\"container\">\n<h1>دعم العملاء</h1>\n<form action=\"/submit_support_request\" method=\"post\">\n<label for=\"name\">اسمك:</label>\n<input type=\"text\" id=\"name\" name=\"name\" required>\n\n<label for=\"email\">بريدك الإلكتروني:</label>\n<input type=\"email\" id=\"email\" name=\"email\" required>\n\n<label for=\"message\">رسالة الدعم:</label>\n<textarea id=\"message\" name=\"message\" rows=\"4\" required></textarea>\n\n<button type=\"submit\">إرسال</button>\n</form>\n</div>\n</body>\n</html>\n```\n\nهذا الكود يحتوي على صفحات HTML بسيطة لصفحة الدعم الفني. يمكنك تعديلها حسب احتياجاتك.\n\nأخيرًا، قم بتشغيل التطبيق عن طريق تشغيل الأمر التالي في الطرفية:\n\n```\npython app.py\n```\n\nثم، انفتح الرابط `http://127.0.0.1:5000/` في متصفح الويب الخاص بك لرؤية الصفحة الرئيسية للدعم الفني.\n\nيمكنك الآن تحديث ملف `support.html` والتطبيق Flask بناءً على احتياجاتك الخاصة."
+          },
+          {
+            "role": "user",
+            "content": "ابي اسوي موقع يدعم خريطة EsriMap المحلية اكتب لي كود لها"
+          },
+          {
+            "role": "assistant",
+            "content": "بالتأكيد، يمكنك إنشاء موقع يستخدم خرائط EsriMap المحلية باستخدام HTML و JavaScript. فيما يلي نموذج بسيط لبدء مشروعك:\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>خرائط EsriMap المحلية</title>\n<!-- تضمين ملف CSS من Esri Map -->\n<link rel=\"stylesheet\" href=\"https://js.arcgis.com/4.25/esri/themes/light/main.css\">\n<!-- تضمين ملف JavaScript من Esri Map -->\n<script src=\"https://js.arcgis.com/4.25/\"></script>\n<style>\n/* تعديلات ملحوظة لحجم الخرائط */\n#viewDiv {\nwidth: 100%;\nheight: 600px;\n }\n</style>\n</head>\n<body>\n<div id=\"viewDiv\"></div>\n\n<script>\nrequire([\n\"esri/Map\",\n\"esri/views/MapView\",\n\"esri/layers/TileLayer\"\n], function(Map, MapView, TileLayer) {\n\n// قم بإنشاء طبقة خرائط جديدة باستخدام URL خرائط EsriMap المحلية\nvar tileLayer = new TileLayer({\nurl: \"URL_للخريطة_المحليه\"\n });\n\n// قم بإنشاء خرائط جديدة وتعيين الطبقات\nvar map = new Map({\nbasemap: tileLayer\n });\n\n// قم بإنشاء مشهد خرائط جديد واستخدام عرض وارتفاع محدد\nvar view = new MapView({\ncontainer: \"viewDiv\", // تحديد العنصر الذي سيحتوي عليه المشهد\nmap: map,              // استخدام الخرائط التي تم إنشاؤها أعلاه\ncenter: [longitude, latitude], // قيم العرض والطول للمركز\nzoom: zoomLevel          // مستوى التوسع\n });\n });\n</script>\n</body>\n</html>\n```\n\n**ملاحظات:**\n1. استبدل `\"URL_للخريطة_المحليه\"` بالرابط الصحيح لخرائط EsriMap المحلية الخاصة بك.\n2. قم بتغيير `center` إلى موقع الوسط الذي ترغب في عرضه على الخريطة (القيم هي عرض وطول).\n3. ضع قيمة `zoomLevel` لتتحكم في مستوى التوسع الأولي للمشهد.\n\nتأكد من أن لديك إتصال مستقر بالإنترنت عند تشغيل هذه الصفحة لأن خرائط EsriMap تتطلب تحميل بعض الموارد عبر الإنترنت."
           }
         ]
       }
