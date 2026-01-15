@@ -198,6 +198,7 @@
         let conversations = [];
         let isGenerating = false;
         let userScrolledUp = false;
+        let currentMessages = []; // مصفوفة لتخزين رسائل المحادثة الحالية
         const SIDEBAR_KEY = 'mortakiz-sidebar';
 
         // تتبع الـ scroll
@@ -494,8 +495,16 @@
                 const data = await res.json();
                 currentConversationId = convId;
                 chatBox.innerHTML = '';
+                currentMessages = []; // إعادة تعيين المصفوفة
                 revealChat();
-                (data.messages || []).forEach(msg => addMessage(msg.content || '', msg.role !== 'user'));
+                (data.messages || []).forEach(msg => {
+                    addMessage(msg.content || '', msg.role !== 'user');
+                    // تخزين الرسالة في المصفوفة
+                    currentMessages.push({
+                        role: msg.role,
+                        content: msg.content || ''
+                    });
+                });
                 renderConversationsList();
             } catch (e) {
                 // ignore
@@ -535,6 +544,7 @@
         function startNewChat() {
             currentConversationId = null;
             conversationStarted = false;
+            currentMessages = []; // تنظيف المصفوفة
             showHero();
             renderConversationsList();
         }
@@ -620,28 +630,11 @@
             const aiDiv = addMessage('...', true);
             let fullText = '';
 
-            // جمع كل رسائل المحادثة السابقة
-            const allMessages = [];
-            chatBox.querySelectorAll('.message').forEach(msgEl => {
-                const isUser = msgEl.classList.contains('user-msg');
-                const textEl = msgEl.querySelector('.msg-text');
-                if (textEl && msgEl !== aiDiv) {
-                    // استخراج النص بدون HTML
-                    const content = textEl.textContent || textEl.innerText || '';
-                    if (content.trim() && content !== '...') {
-                        allMessages.push({
-                            role: isUser ? 'user' : 'assistant',
-                            content: content.trim()
-                        });
-                    }
-                }
-            });
-            // إزالة آخر رسالة user لأننا سنضيفها مع combined
-            if (allMessages.length > 0 && allMessages[allMessages.length - 1].role === 'user') {
-                allMessages.pop();
-            }
-            // إضافة الرسالة الجديدة
-            allMessages.push({ role: 'user', content: combined });
+            // إضافة الرسالة الجديدة للمصفوفة
+            currentMessages.push({ role: 'user', content: combined });
+            
+            // نسخ المصفوفة لإرسالها
+            const allMessages = [...currentMessages];
 
             try {
                 const response = await fetch('/v1/chat/completions', {
@@ -684,7 +677,12 @@
                 }
             } catch (err) {
                 renderContent(translations[currentLang].error, aiDiv);
+                fullText = translations[currentLang].error;
             } finally {
+                // تخزين رد المساعد في المصفوفة
+                if (fullText) {
+                    currentMessages.push({ role: 'assistant', content: fullText });
+                }
                 isGenerating = false;
                 sendBtn.disabled = false;
                 sendBtnChat.disabled = false;
