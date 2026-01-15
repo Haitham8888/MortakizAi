@@ -50,6 +50,7 @@ data/histroy.json
 *.db
 *.sqlite
 *.sqlite3
+data/history.json
 
 # Logs
 *.log
