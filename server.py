@@ -31,26 +31,41 @@ if not MODEL_PATH:
 
 # 1. فحص العتاد
 device_count = torch.cuda.device_count()
-if device_count > 0:
-    vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-    gpu_name = torch.cuda.get_device_name(0)
-else:
-    vram_gb = 0
-    gpu_name = "CPU"
+total_vram_gb = 0
 
-print(f"🚀 [ {PROJECT_NAME} ] يبدأ العمل...")
-print(f"🖥️ الجهاز: {gpu_name} | CUDA: {device_count} | VRAM: {vram_gb:.1f} GB")
+if device_count > 0:
+    print(f"🚀 [ {PROJECT_NAME} ] يبدأ العمل...")
+    print(f"🖥️ عدد كروت الشاشة المتاحة: {device_count}")
+    
+    for i in range(device_count):
+        gpu_name = torch.cuda.get_device_name(i)
+        vram_gb = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+        total_vram_gb += vram_gb
+        print(f"   GPU {i}: {gpu_name} | VRAM: {vram_gb:.1f} GB")
+    
+    print(f"📊 إجمالي VRAM: {total_vram_gb:.1f} GB")
+else:
+    print(f"🚀 [ {PROJECT_NAME} ] يبدأ العمل...")
+    print(f"⚠️ لا يوجد GPU متاح - سيتم استخدام CPU")
 
 # 2. استراتيجية التحميل
 loading_kwargs = {"device_map": "auto", "trust_remote_code": True}
 if device_count == 0:
+    # CPU فقط
     loading_kwargs = {"device_map": {"": "cpu"}, "torch_dtype": torch.float32, "trust_remote_code": True}
-elif vram_gb > 20:
+elif total_vram_gb > 20:
+    # VRAM كافية - استخدام bfloat16 للدقة العالية
     loading_kwargs["torch_dtype"] = torch.bfloat16
+    print(f"✅ استخدام bfloat16 (VRAM كافية)")
 else:
+    # VRAM محدودة - استخدام 4-bit quantization
     loading_kwargs["quantization_config"] = BitsAndBytesConfig(
-        load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=True
+        load_in_4bit=True, 
+        bnb_4bit_compute_dtype=torch.float16, 
+        bnb_4bit_quant_type="nf4", 
+        bnb_4bit_use_double_quant=True
     )
+    print(f"✅ استخدام 4-bit quantization (توفير VRAM)")
 
 # 3. تحميل الموديل والـ Tokenizer
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, fix_mistral_regex=True)
