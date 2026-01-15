@@ -1,44 +1,34 @@
 {
-  "127.0.0.1": [
-    {
-      "role": "user",
-      "content": "مرحبا"
-    },
-    {
-      "role": "assistant",
-      "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
-    },
-    {
-      "role": "user",
-      "content": "كيف حالك ؟"
-    },
-    {
-      "role": "assistant",
-      "content": "أنا بخير، شكراً! كيف يمكنني مساعدتك اليوم؟"
-    },
-    {
-      "role": "user",
-      "content": "مرحبا"
-    },
-    {
-      "role": "assistant",
-      "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
-    },
-    {
-      "role": "user",
-      "content": "كيف حالك ؟"
-    },
-    {
-      "role": "assistant",
-      "content": "أنا بخير، شكراً! كيف يمكنني مساعدتك اليوم؟"
-    },
-    {
-      "role": "user",
-      "content": "مرحبا"
-    },
-    {
-      "role": "assistant",
-      "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+  "127.0.0.1": {
+    "conversations": {
+      "dec2bb1e": {
+        "created_at": "2026-01-15T08:05:03.254136",
+        "title": "مرحبا",
+        "messages": [
+          {
+            "role": "user",
+            "content": "مرحبا"
+          },
+          {
+            "role": "assistant",
+            "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+          }
+        ]
+      },
+      "5a7706de": {
+        "created_at": "2026-01-15T08:05:17.940766",
+        "title": "كيف حالك ؟",
+        "messages": [
+          {
+            "role": "user",
+            "content": "كيف حالك ؟"
+          },
+          {
+            "role": "assistant",
+            "content": "أنا بخير، شكراً! كيف يمكنني مساعدتك اليوم؟"
+          }
+        ]
+      }
     }
-  ]
+  }
 }
