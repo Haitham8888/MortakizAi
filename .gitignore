@@ -43,7 +43,7 @@ static/uploads/*
 # Chat History & AI Notes
 chat_history/
 ai_notes.json
-
+data/
 # Database files
 *.db
 *.sqlite

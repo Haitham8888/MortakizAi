@@ -2,6 +2,8 @@ import torch
 import uvicorn
 import json
 import os
+import uuid
+from datetime import datetime
 from pathlib import Path
 import io
 from fastapi import FastAPI, Request, UploadFile, File
@@ -83,18 +85,100 @@ def _get_ip(request: Request) -> str:
 
 def get_history_for_ip(ip: str):
     data = _read_history()
-    return data.get(ip, [])
+    return data.get(ip, {})
 
 
-def append_exchange(ip: str, user_text: str, assistant_text: str) -> None:
+def get_conversations_for_ip(ip: str) -> list:
+    """Get list of conversations for an IP"""
     data = _read_history()
-    history = data.get(ip, [])
+    user_data = data.get(ip, {})
+    if isinstance(user_data, list):
+        # Migrate old format to new
+        return []
+    convs = user_data.get("conversations", {})
+    result = []
+    for conv_id, conv_data in convs.items():
+        messages = conv_data.get("messages", [])
+        title = conv_data.get("title", "محادثة")
+        if not title and messages:
+            # Use first user message as title
+            for msg in messages:
+                if msg.get("role") == "user":
+                    title = msg.get("content", "")[:50]
+                    break
+        result.append({
+            "id": conv_id,
+            "title": title or "محادثة",
+            "created_at": conv_data.get("created_at"),
+            "message_count": len(messages)
+        })
+    # Sort by created_at descending
+    result.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return result
+
+
+def get_conversation(ip: str, conv_id: str) -> dict:
+    """Get a specific conversation"""
+    data = _read_history()
+    user_data = data.get(ip, {})
+    if isinstance(user_data, list):
+        return {}
+    return user_data.get("conversations", {}).get(conv_id, {})
+
+
+def delete_conversation(ip: str, conv_id: str) -> bool:
+    """Delete a conversation"""
+    data = _read_history()
+    user_data = data.get(ip, {})
+    if isinstance(user_data, list):
+        return False
+    convs = user_data.get("conversations", {})
+    if conv_id in convs:
+        del convs[conv_id]
+        data[ip] = user_data
+        _write_history(data)
+        return True
+    return False
+
+
+def append_exchange(ip: str, user_text: str, assistant_text: str, conv_id: str = None) -> str:
+    """Append messages to a conversation, returns conversation ID"""
+    data = _read_history()
+    user_data = data.get(ip, {})
+    
+    # Migrate old format
+    if isinstance(user_data, list):
+        user_data = {"conversations": {}}
+    
+    if "conversations" not in user_data:
+        user_data["conversations"] = {}
+    
+    # Create new conversation if needed
+    if not conv_id:
+        conv_id = str(uuid.uuid4())[:8]
+        user_data["conversations"][conv_id] = {
+            "created_at": datetime.now().isoformat(),
+            "title": user_text[:50] if user_text else "محادثة",
+            "messages": []
+        }
+    
+    conv = user_data["conversations"].get(conv_id)
+    if not conv:
+        conv = {
+            "created_at": datetime.now().isoformat(),
+            "title": user_text[:50] if user_text else "محادثة",
+            "messages": []
+        }
+        user_data["conversations"][conv_id] = conv
+    
     if user_text:
-        history.append({"role": "user", "content": user_text})
+        conv["messages"].append({"role": "user", "content": user_text})
     if assistant_text:
-        history.append({"role": "assistant", "content": assistant_text})
-    data[ip] = history
+        conv["messages"].append({"role": "assistant", "content": assistant_text})
+    
+    data[ip] = user_data
     _write_history(data)
+    return conv_id
 
 
 def _extract_docx_text(raw: bytes) -> str:
@@ -133,7 +217,27 @@ async def get_ui():
 @app.get("/v1/history")
 async def history(request: Request):
     ip = _get_ip(request)
-    return {"messages": get_history_for_ip(ip)}
+    return {"messages": []}
+
+
+@app.get("/v1/conversations")
+async def list_conversations(request: Request):
+    ip = _get_ip(request)
+    return {"conversations": get_conversations_for_ip(ip)}
+
+
+@app.get("/v1/conversations/{conv_id}")
+async def get_conv(conv_id: str, request: Request):
+    ip = _get_ip(request)
+    conv = get_conversation(ip, conv_id)
+    return {"messages": conv.get("messages", []), "title": conv.get("title", "")}
+
+
+@app.delete("/v1/conversations/{conv_id}")
+async def delete_conv(conv_id: str, request: Request):
+    ip = _get_ip(request)
+    success = delete_conversation(ip, conv_id)
+    return {"success": success}
 
 
 @app.post("/v1/upload")
@@ -159,6 +263,7 @@ async def upload_files(request: Request, files: list[UploadFile] = File(...)):
 async def chat_completions(request: Request):
     data = await request.json()
     messages = data.get("messages", [])
+    conv_id = data.get("conversation_id")
     
     # تنظيف سريع
     cleaned = []
@@ -178,9 +283,10 @@ async def chat_completions(request: Request):
     Thread(target=model.generate, kwargs=generation_kwargs).start()
 
     full_text = ""
+    new_conv_id = conv_id
 
     async def generate():
-        nonlocal full_text
+        nonlocal full_text, new_conv_id
         yield f"data: {json.dumps({'choices': [{'delta': {'role': 'assistant', 'content': ''}}]})}\n\n"
         for text in streamer:
             if await request.is_disconnected():
@@ -191,7 +297,8 @@ async def chat_completions(request: Request):
             if any(s in text for s in stop_tokens):
                 break
             yield f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n"
-        append_exchange(ip, user_text, full_text)
+        new_conv_id = append_exchange(ip, user_text, full_text, conv_id)
+        yield f"data: {json.dumps({'conversation_id': new_conv_id})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")

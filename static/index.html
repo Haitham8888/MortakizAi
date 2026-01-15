@@ -7,8 +7,34 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex">
     <div class="bg-accent-glow"></div>
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar__header">
+            <button id="newChatBtn" class="new-chat-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                <span id="newChatText">محادثة جديدة</span>
+            </button>
+        </div>
+        <div class="sidebar__content">
+            <p id="chatsLabel" class="sidebar__label">المحادثات السابقة</p>
+            <div id="chatsList" class="chats-list"></div>
+        </div>
+        <div class="sidebar__footer">
+            <button id="toggleSidebarBtn" class="toggle-sidebar-btn" title="إخفاء القائمة">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/>
+                </svg>
+            </button>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="main-wrapper flex-grow flex flex-col">
     <header class="shadow-md">
         <div class="container mx-auto px-4 py-4 flex items-center justify-between max-w-5xl gap-4">
             <div class="flex items-center gap-3">
@@ -25,11 +51,16 @@
                 </div>
             </div>
             <div class="flex items-center gap-3">
+                <button id="openSidebarBtn" class="sidebar-toggle-btn hidden" aria-label="فتح القائمة" title="فتح القائمة">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12h18M3 6h18M3 18h18"/>
+                    </svg>
+                </button>
                 <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
-                    <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <svg id="iconMoon" class="icon-16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
                     </svg>
-                    <svg id="iconSun" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <svg id="iconSun" class="icon-16 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"/>
                         <path d="M12 1v2M12 21v2M4.22 4.22 5.64 5.64M18.36 18.36 19.78 19.78M1 12h2M21 12h2M4.22 19.78 5.64 18.36M18.36 5.64 19.78 4.22"/>
                     </svg>
@@ -40,11 +71,12 @@
         </div>
     </header>
 
-    <main class="flex-grow container mx-auto px-4 py-10 max-w-6xl w-full">
-        <section id="hero" class="hero">
+    <main class="flex-grow container mx-auto px-4 max-w-4xl w-full flex flex-col">
+        <!-- Hero Section - يظهر في البداية فقط -->
+        <section id="hero" class="hero hero--centered">
             <p id="heroTitle" class="hero__title">ما الذي تريد البدء به؟</p>
-            <div id="heroInput" class="hero__input">
-                    <button class="icon-btn" aria-hidden="true" id="uploadBtn">
+            <div id="heroInputInitial" class="hero__input">
+                <button class="icon-btn" aria-hidden="true" id="uploadBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 5v14M5 12h14" />
                     </svg>
@@ -52,46 +84,68 @@
                 <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
                 <div class="hero__actions">
                     <button id="sendBtn" class="send-circle" aria-label="إرسال" title="إرسال">
+                        <svg class="icon-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m3 11 18-8-8 18-2-7-8-3Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="attachments" class="attachments hidden"></div>
+        </section>
+
+        <!-- Chat Section - يظهر بعد الإرسال -->
+        <section id="chatPanel" class="chat-panel hidden">
+            <div id="chatBox" class="chat-container"></div>
+            <div class="chat-input-wrapper">
+                <div id="chatAttachments" class="attachments hidden"></div>
+                <div class="chat-input-bar">
+                    <button class="icon-btn" aria-hidden="true" id="uploadBtnChat">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                    </button>
+                    <input type="text" id="userInputChat" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
+                    <button id="sendBtnChat" class="send-circle" aria-label="إرسال" title="إرسال">
+                        <svg class="icon-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="m3 11 18-8-8 18-2-7-8-3Z"/>
                         </svg>
                     </button>
                 </div>
             </div>
         </section>
-
-        <section id="chatPanel" class="panel minimal hidden">
-            <div class="panel__header">
-                <div>
-                    <p id="panelTitle" class="text-slate-200 font-semibold">المحادثة</p>
-                    <p id="panelSubtitle" class="text-sm text-slate-400">اسأل عن الأكواد، التصحيحات، أو الاقتراحات</p>
-                </div>
-                <div class="chip">Beta</div>
-            </div>
-
-            <div id="chatBox" class="chat-container">
-                <div class="message ai-msg">...</div>
-            </div>
-        </section>
     </main>
 
     <script>
         const chatBox = document.getElementById('chatBox');
-        const userInput = document.getElementById('userInput');
-        const sendBtn = document.getElementById('sendBtn');
+        const hero = document.getElementById('hero');
+        const chatPanel = document.getElementById('chatPanel');
         const langToggle = document.getElementById('langToggle');
         const titleText = document.getElementById('titleText');
         const subtitleText = document.getElementById('subtitleText');
         const statusText = document.getElementById('statusText');
-        const panelTitle = document.getElementById('panelTitle');
-        const panelSubtitle = document.getElementById('panelSubtitle');
-        const hero = document.getElementById('hero');
-        const heroInput = document.getElementById('heroInput');
-        const chatPanel = document.getElementById('chatPanel');
         const themeToggle = document.getElementById('themeToggle');
         const iconMoon = document.getElementById('iconMoon');
         const iconSun = document.getElementById('iconSun');
+        
+        // Sidebar elements
+        const sidebar = document.getElementById('sidebar');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const chatsList = document.getElementById('chatsList');
+        const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+        const openSidebarBtn = document.getElementById('openSidebarBtn');
+        const newChatText = document.getElementById('newChatText');
+        const chatsLabel = document.getElementById('chatsLabel');
+        
+        // Hero inputs (initial state)
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
         const uploadBtn = document.getElementById('uploadBtn');
+        
+        // Chat inputs (after first message)
+        const userInputChat = document.getElementById('userInputChat');
+        const sendBtnChat = document.getElementById('sendBtnChat');
+        const uploadBtnChat = document.getElementById('uploadBtnChat');
+        
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.multiple = true;
@@ -112,7 +166,10 @@
                 error: '⚠️ خطأ في الاتصال بالسيرفر.',
                 toggleLabel: 'EN',
                 copy: 'نسخ',
-                copied: 'تم النسخ'
+                copied: 'تم النسخ',
+                newChat: 'محادثة جديدة',
+                prevChats: 'المحادثات السابقة',
+                noChats: 'لا توجد محادثات سابقة'
             },
             en: {
                 dir: 'ltr',
@@ -128,14 +185,20 @@
                 error: '⚠️ Connection error with server.',
                 toggleLabel: 'عربي',
                 copy: 'Copy',
-                copied: 'Copied'
+                copied: 'Copied',
+                newChat: 'New Chat',
+                prevChats: 'Previous Chats',
+                noChats: 'No previous chats'
             }
         };
 
         let currentLang = 'ar';
         let conversationStarted = false;
         let attachments = [];
+        let currentConversationId = null;
+        let conversations = [];
         const THEME_KEY = 'mortakiz-theme';
+        const SIDEBAR_KEY = 'mortakiz-sidebar';
 
         function applyTheme(mode) {
             const theme = mode === 'light' ? 'light' : 'dark';
@@ -199,21 +262,137 @@
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
             updateHeroState();
-            if (!conversationStarted && !isAi) {
-                conversationStarted = true;
-                revealChat();
-            }
             return div;
         }
 
         function updateHeroState() {
-            const hasUserMessages = chatBox.querySelector('.user-msg');
-            hero.classList.toggle('hero--compact', !!hasUserMessages);
+            // Not needed anymore
         }
 
         function revealChat() {
+            hero.classList.add('hidden');
             chatPanel.classList.remove('hidden');
-            heroInput.classList.add('hidden');
+            userInputChat.focus();
+        }
+        
+        function showHero() {
+            hero.classList.remove('hidden');
+            chatPanel.classList.add('hidden');
+            chatBox.innerHTML = '';
+            userInput.focus();
+        }
+        
+        // Sidebar functions
+        function toggleSidebar(show) {
+            const isOpen = show !== undefined ? show : sidebar.classList.contains('sidebar--collapsed');
+            sidebar.classList.toggle('sidebar--collapsed', !isOpen);
+            openSidebarBtn.classList.toggle('hidden', isOpen);
+            localStorage.setItem(SIDEBAR_KEY, isOpen ? 'open' : 'closed');
+        }
+        
+        (function initSidebar() {
+            const saved = localStorage.getItem(SIDEBAR_KEY);
+            if (saved === 'closed') {
+                toggleSidebar(false);
+            }
+        })();
+        
+        toggleSidebarBtn.addEventListener('click', () => toggleSidebar(false));
+        openSidebarBtn.addEventListener('click', () => toggleSidebar(true));
+        
+        async function loadConversations() {
+            try {
+                const res = await fetch('/v1/conversations');
+                if (!res.ok) return;
+                const data = await res.json();
+                conversations = data.conversations || [];
+                renderConversationsList();
+            } catch (e) {
+                // ignore
+            }
+        }
+        
+        function renderConversationsList() {
+            chatsList.innerHTML = '';
+            if (conversations.length === 0) {
+                chatsList.innerHTML = `<p class="no-chats">${translations[currentLang].noChats}</p>`;
+                return;
+            }
+            conversations.forEach(conv => {
+                const item = document.createElement('button');
+                item.className = `chat-item ${conv.id === currentConversationId ? 'chat-item--active' : ''}`;
+                item.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span class="chat-item__title">${conv.title || 'محادثة'}</span>
+                    <button class="chat-item__delete" data-conv-id="${conv.id}" title="حذف">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+                `;
+                item.addEventListener('click', (e) => {
+                    if (!e.target.closest('.chat-item__delete')) {
+                        loadConversation(conv.id);
+                    }
+                });
+                chatsList.appendChild(item);
+            });
+            
+            // Delete buttons
+            chatsList.querySelectorAll('.chat-item__delete').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const convId = btn.dataset.convId;
+                    await deleteConversation(convId);
+                });
+            });
+        }
+        
+        async function loadConversation(convId) {
+            try {
+                const res = await fetch(`/v1/conversations/${convId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                currentConversationId = convId;
+                chatBox.innerHTML = '';
+                revealChat();
+                (data.messages || []).forEach(msg => addMessage(msg.content || '', msg.role !== 'user'));
+                renderConversationsList();
+            } catch (e) {
+                // ignore
+            }
+        }
+        
+        async function deleteConversation(convId) {
+            try {
+                await fetch(`/v1/conversations/${convId}`, { method: 'DELETE' });
+                if (currentConversationId === convId) {
+                    currentConversationId = null;
+                    showHero();
+                }
+                await loadConversations();
+            } catch (e) {
+                // ignore
+            }
+        }
+        
+        function startNewChat() {
+            currentConversationId = null;
+            conversationStarted = false;
+            showHero();
+            renderConversationsList();
+        }
+        
+        newChatBtn.addEventListener('click', startNewChat);
+        
+        function getCurrentInput() {
+            return chatPanel.classList.contains('hidden') ? userInput : userInputChat;
+        }
+        
+        function getCurrentSendBtn() {
+            return chatPanel.classList.contains('hidden') ? sendBtn : sendBtnChat;
         }
 
         function renderAttachments() {
@@ -239,32 +418,28 @@
         }
 
         async function loadHistory() {
-            try {
-                const res = await fetch('/v1/history');
-                if (!res.ok) return;
-                const data = await res.json();
-                const history = data.messages || [];
-                if (history.length) {
-                    chatBox.innerHTML = '';
-                    conversationStarted = true;
-                    revealChat();
-                    history.forEach(msg => addMessage(msg.content || '', msg.role !== 'user'));
-                }
-            } catch (e) {
-                // ignore history failures
-            }
+            // History is now managed through conversations
         }
 
         async function sendMessage() {
-            const text = userInput.value.trim();
+            const activeInput = getCurrentInput();
+            const activeBtn = getCurrentSendBtn();
+            const text = activeInput.value.trim();
             const contextFromFiles = attachments.map(a => `ملف: ${a.name}\n${a.content}`).join('\n\n');
             const combined = contextFromFiles ? `${text}\n\n${contextFromFiles}` : text;
             if (!combined) return;
 
-            userInput.value = '';
-            userInput.focus();
+            activeInput.value = '';
+            
+            // Switch to chat view on first message
+            if (chatPanel.classList.contains('hidden')) {
+                revealChat();
+            }
+            
             addMessage(combined, false);
+            activeBtn.disabled = true;
             sendBtn.disabled = true;
+            sendBtnChat.disabled = true;
 
             const aiDiv = addMessage('...', true);
             let fullText = '';
@@ -273,7 +448,10 @@
                 const response = await fetch('/v1/chat/completions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: [{ role: 'user', content: combined }] })
+                    body: JSON.stringify({ 
+                        messages: [{ role: 'user', content: combined }],
+                        conversation_id: currentConversationId
+                    })
                 });
 
                 const reader = response.body.getReader();
@@ -289,10 +467,16 @@
 
                     for (const line of lines) {
                         if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                            const data = JSON.parse(line.substring(6));
-                            const content = data.choices[0].delta.content || '';
-                            fullText += content;
-                            renderContent(fullText, aiDiv);
+                            try {
+                                const data = JSON.parse(line.substring(6));
+                                if (data.conversation_id) {
+                                    currentConversationId = data.conversation_id;
+                                } else if (data.choices && data.choices[0].delta.content) {
+                                    const content = data.choices[0].delta.content || '';
+                                    fullText += content;
+                                    renderContent(fullText, aiDiv);
+                                }
+                            } catch (e) {}
                         }
                     }
                     chatBox.scrollTop = chatBox.scrollHeight;
@@ -301,13 +485,20 @@
                 renderContent(translations[currentLang].error, aiDiv);
             } finally {
                 sendBtn.disabled = false;
+                sendBtnChat.disabled = false;
                 attachments = [];
                 renderAttachments();
+                userInputChat.focus();
+                await loadConversations();
             }
         }
 
         sendBtn.onclick = sendMessage;
+        sendBtnChat.onclick = sendMessage;
         userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        userInputChat.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
         themeToggle.addEventListener('click', () => {
@@ -325,15 +516,16 @@
             titleText.textContent = t.title;
             subtitleText.textContent = t.subtitle;
             statusText.textContent = t.status;
-            panelTitle.textContent = t.panelTitle;
-            panelSubtitle.textContent = t.panelSubtitle;
             userInput.placeholder = t.placeholder;
+            userInputChat.placeholder = t.placeholder;
             sendBtn.setAttribute('title', t.send);
             sendBtn.setAttribute('aria-label', t.send);
+            sendBtnChat.setAttribute('title', t.send);
+            sendBtnChat.setAttribute('aria-label', t.send);
             langToggle.textContent = t.toggleLabel;
-
-            const firstAiMessage = chatBox.querySelector('.ai-msg');
-            if (firstAiMessage) renderContent(t.welcome, firstAiMessage);
+            newChatText.textContent = t.newChat;
+            chatsLabel.textContent = t.prevChats;
+            renderConversationsList();
         }
 
         langToggle.addEventListener('click', () => {
@@ -343,6 +535,7 @@
         });
 
         uploadBtn.addEventListener('click', () => fileInput.click());
+        uploadBtnChat.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files || []);
             if (!files.length) return;
@@ -372,6 +565,8 @@
         applyLanguage('ar');
         userInput.focus();
         loadHistory();
+        loadConversations();
     </script>
+    </div><!-- end main-wrapper -->
 </body>
 </html>
