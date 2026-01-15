@@ -158,7 +158,12 @@
                 copied: 'تم النسخ',
                 newChat: 'محادثة جديدة',
                 prevChats: 'المحادثات السابقة',
-                noChats: 'لا توجد محادثات سابقة'
+                noChats: 'لا توجد محادثات سابقة',
+                heroTitle: 'ما الذي تريد البدء به؟',
+                deleteAll: 'حذف جميع المحادثات',
+                hideSidebar: 'إخفاء القائمة',
+                openSidebar: 'فتح القائمة',
+                delete: 'حذف'
             },
             en: {
                 dir: 'ltr',
@@ -177,7 +182,12 @@
                 copied: 'Copied!',
                 newChat: 'New Chat',
                 prevChats: 'Previous Chats',
-                noChats: 'No previous chats'
+                noChats: 'No previous chats',
+                heroTitle: 'What would you like to start with?',
+                deleteAll: 'Delete all chats',
+                hideSidebar: 'Hide sidebar',
+                openSidebar: 'Open sidebar',
+                delete: 'Delete'
             }
         };
 
@@ -350,14 +360,14 @@
                 const item = document.createElement('button');
                 item.className = `chat-item ${conv.id === currentConversationId ? 'chat-item--active' : ''}`;
                 // تنظيف العنوان - إزالة الأسطر الجديدة وقصه
-                let title = (conv.title || 'محادثة').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+                let title = (conv.title || (currentLang === 'ar' ? 'محادثة' : 'Chat')).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
                 if (title.length > 35) title = title.substring(0, 35) + '...';
                 item.innerHTML = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
                     <span class="chat-item__title">${title}</span>
-                    <button class="chat-item__delete" data-conv-id="${conv.id}" title="حذف">
+                    <button class="chat-item__delete" data-conv-id="${conv.id}" title="${translations[currentLang].delete}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         </svg>
@@ -587,6 +597,17 @@
             langToggle.textContent = t.toggleLabel;
             newChatText.textContent = t.newChat;
             chatsLabel.textContent = t.prevChats;
+            
+            // Hero title
+            const heroTitle = document.getElementById('heroTitle');
+            if (heroTitle) heroTitle.textContent = t.heroTitle;
+            
+            // Sidebar buttons
+            clearAllChatsBtn.setAttribute('title', t.deleteAll);
+            toggleSidebarBtn.setAttribute('title', t.hideSidebar);
+            openSidebarBtn.setAttribute('title', t.openSidebar);
+            openSidebarBtn.setAttribute('aria-label', t.openSidebar);
+            
             renderConversationsList();
         }
 
