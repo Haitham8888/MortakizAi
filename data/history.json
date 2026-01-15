@@ -22,6 +22,36 @@
             "content": "بالتأكيد، يمكنك إنشاء موقع يستخدم خرائط EsriMap المحلية باستخدام HTML و JavaScript. فيما يلي نموذج بسيط لبدء مشروعك:\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>خرائط EsriMap المحلية</title>\n<!-- تضمين ملف CSS من Esri Map -->\n<link rel=\"stylesheet\" href=\"https://js.arcgis.com/4.25/esri/themes/light/main.css\">\n<!-- تضمين ملف JavaScript من Esri Map -->\n<script src=\"https://js.arcgis.com/4.25/\"></script>\n<style>\n/* تعديلات ملحوظة لحجم الخرائط */\n#viewDiv {\nwidth: 100%;\nheight: 600px;\n }\n</style>\n</head>\n<body>\n<div id=\"viewDiv\"></div>\n\n<script>\nrequire([\n\"esri/Map\",\n\"esri/views/MapView\",\n\"esri/layers/TileLayer\"\n], function(Map, MapView, TileLayer) {\n\n// قم بإنشاء طبقة خرائط جديدة باستخدام URL خرائط EsriMap المحلية\nvar tileLayer = new TileLayer({\nurl: \"URL_للخريطة_المحليه\"\n });\n\n// قم بإنشاء خرائط جديدة وتعيين الطبقات\nvar map = new Map({\nbasemap: tileLayer\n });\n\n// قم بإنشاء مشهد خرائط جديد واستخدام عرض وارتفاع محدد\nvar view = new MapView({\ncontainer: \"viewDiv\", // تحديد العنصر الذي سيحتوي عليه المشهد\nmap: map,              // استخدام الخرائط التي تم إنشاؤها أعلاه\ncenter: [longitude, latitude], // قيم العرض والطول للمركز\nzoom: zoomLevel          // مستوى التوسع\n });\n });\n</script>\n</body>\n</html>\n```\n\n**ملاحظات:**\n1. استبدل `\"URL_للخريطة_المحليه\"` بالرابط الصحيح لخرائط EsriMap المحلية الخاصة بك.\n2. قم بتغيير `center` إلى موقع الوسط الذي ترغب في عرضه على الخريطة (القيم هي عرض وطول).\n3. ضع قيمة `zoomLevel` لتتحكم في مستوى التوسع الأولي للمشهد.\n\nتأكد من أن لديك إتصال مستقر بالإنترنت عند تشغيل هذه الصفحة لأن خرائط EsriMap تتطلب تحميل بعض الموارد عبر الإنترنت."
           }
         ]
+      },
+      "efb7288d": {
+        "created_at": "2026-01-15T08:48:17.464056",
+        "title": "مرحبا",
+        "messages": [
+          {
+            "role": "user",
+            "content": "مرحبا"
+          },
+          {
+            "role": "assistant",
+            "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+          },
+          {
+            "role": "user",
+            "content": "كيف حالك ؟"
+          },
+          {
+            "role": "assistant",
+            "content": "أنا بخير، شكراً! كيف يمكنني مساعدتك اليوم؟"
+          },
+          {
+            "role": "user",
+            "content": "هل يمكنك كتابة كود باللينكس لأكتشف لو لدي كرت او لا"
+          },
+          {
+            "role": "assistant",
+            "content": "بالتأكيد! يمكنك استخدام الأمر التالي في الطرفية للكشف عن الكارتات المتصلة بالجهاز:\n\n```\nlspci | grep -i vga\n```\n\nهذا الأمر سيقوم بعرض المعلومات حول البطاقة الرسومية (VGA) المثبتة على جهاز الكمبيوتر الخاص بك.\n\nإذا كنت ترغب في الحصول على معلومات أكثر تفصيلاً، يمكنك استخدام الأمر التالي:\n\n```\nlshw -C display\n```\n\nهذا الأمر سيوفر لك تفاصيل كاملة حول جميع الأجهزة المعروضة، بما في ذلك بطاقات الفيديو والشاشة.\n\nتذكر أن هذا قد يتطلب بعض الصلاحية للوصول إلى معلومات الجهاز، لذا قد تحتاج إلى تشغيل الأوامر باستخدام `sudo` إذا كنت تعمل في نظام Linux يدعم ذلك."
+          }
+        ]
       }
     }
   }

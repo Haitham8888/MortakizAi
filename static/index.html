@@ -216,8 +216,12 @@
             text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
             // Inline code: `code`
             text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-            // Line breaks
+            // Line breaks - single only, trim multiple
+            text = text.replace(/\n{2,}/g, '\n');
             text = text.replace(/\n/g, '<br>');
+            // Remove leading/trailing br tags
+            text = text.replace(/^(<br>)+/g, '');
+            text = text.replace(/(<br>)+$/g, '');
             return text;
         }
 
