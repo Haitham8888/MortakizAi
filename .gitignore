@@ -44,6 +44,8 @@ static/uploads/*
 chat_history/
 ai_notes.json
 data/
+data/*
+data/histroy.json
 # Database files
 *.db
 *.sqlite

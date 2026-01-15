@@ -58,10 +58,8 @@ STATIC_DIR = BASE_DIR / "static"
 INDEX_FILE = STATIC_DIR / "index.html"
 DATA_DIR = BASE_DIR / "data"
 HISTORY_FILE = DATA_DIR / "history.json"
-UPLOAD_DIR = DATA_DIR / "uploads"
 
 DATA_DIR.mkdir(exist_ok=True)
-UPLOAD_DIR.mkdir(exist_ok=True)
 if not HISTORY_FILE.exists():
     HISTORY_FILE.write_text(json.dumps({}, ensure_ascii=False))
 
@@ -156,11 +154,6 @@ def append_exchange(ip: str, user_text: str, assistant_text: str, conv_id: str =
     # Create new conversation if needed
     if not conv_id:
         conv_id = str(uuid.uuid4())[:8]
-        user_data["conversations"][conv_id] = {
-            "created_at": datetime.now().isoformat(),
-            "title": user_text[:50] if user_text else "محادثة",
-            "messages": []
-        }
     
     conv = user_data["conversations"].get(conv_id)
     if not conv:
@@ -242,16 +235,11 @@ async def delete_conv(conv_id: str, request: Request):
 
 @app.post("/v1/upload")
 async def upload_files(request: Request, files: list[UploadFile] = File(...)):
-    ip = _get_ip(request)
     saved = []
     for f in files:
         raw = await f.read()
         text = _extract_text(f, raw)
-        path = UPLOAD_DIR / f"{ip.replace(':','_')}_{f.filename}"
-        try:
-            path.write_bytes(raw)
-        except Exception:
-            pass
+        # لا يتم حفظ الملفات على القرص - فقط قراءة في الذاكرة
         saved.append({
             "name": f.filename,
             "size": len(raw),
@@ -287,6 +275,10 @@ async def chat_completions(request: Request):
 
     async def generate():
         nonlocal full_text, new_conv_id
+        # Create conversation ID early if not provided
+        if not conv_id:
+            new_conv_id = str(uuid.uuid4())[:8]
+            yield f"data: {json.dumps({'conversation_id': new_conv_id})}\n\n"
         yield f"data: {json.dumps({'choices': [{'delta': {'role': 'assistant', 'content': ''}}]})}\n\n"
         for text in streamer:
             if await request.is_disconnected():
@@ -297,8 +289,7 @@ async def chat_completions(request: Request):
             if any(s in text for s in stop_tokens):
                 break
             yield f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n"
-        new_conv_id = append_exchange(ip, user_text, full_text, conv_id)
-        yield f"data: {json.dumps({'conversation_id': new_conv_id})}\n\n"
+        append_exchange(ip, user_text, full_text, new_conv_id or conv_id)
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")

@@ -189,14 +189,29 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function formatMarkdown(text) {
+            // Bold: **text** or __text__
+            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+            // Italic: *text* or _text_
+            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
+            // Inline code: `code`
+            text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+            // Line breaks
+            text = text.replace(/\n/g, '<br>');
+            return text;
+        }
+
         function renderContent(raw, el) {
             const parts = raw.split(/```/);
             let html = '';
 
             parts.forEach((part, idx) => {
                 if (idx % 2 === 0) {
-                    const text = escapeHTML(part).replace(/\n/g, '<br>');
-                    if (text.trim().length) html += `<div class="msg-text">${text}</div>`;
+                    const escaped = escapeHTML(part);
+                    const formatted = formatMarkdown(escaped);
+                    if (formatted.trim().length) html += `<div class="msg-text">${formatted}</div>`;
                 } else {
                     const code = part.trim();
                     html += `
@@ -408,7 +423,17 @@
                 revealChat();
             }
             
-            addMessage(combined, false);
+            // Show user message with file names only (not content)
+            let displayText = text;
+            if (attachments.length > 0) {
+                const fileNames = attachments.map(a => `📎 ${a.name}`).join('، ');
+                displayText = text ? `${text}\n${fileNames}` : fileNames;
+            }
+            addMessage(displayText, false);
+            
+            // Clear attachments after sending
+            attachments = [];
+            renderAttachments();
             activeBtn.disabled = true;
             sendBtn.disabled = true;
             sendBtnChat.disabled = true;
