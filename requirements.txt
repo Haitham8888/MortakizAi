@@ -1,17 +1,22 @@
 # Python 3.12.3
 # ================
+# المكتبات المستخدمة في server.py فقط
 
-# PyTorch - للتعلم العميق
-torch>=2.2.0
+# PyTorch (CUDA 12.1+)
+# Install with: pip install torch --index-url https://download.pytorch.org/whl/cu121
+torch>=2.0.0
 
 # Transformers - لتحميل وتشغيل النماذج
 transformers>=4.40.0
 
-# Accelerate - لتوزيع الموديل على الأجهزة
-accelerate>=0.29.0
+# Accelerate - مطلوب لـ device_map="auto"
+accelerate>=0.25.0
 
-# BitsAndBytes - للـ quantization (4-bit/8-bit)
-bitsandbytes>=0.43.0
+# BitsAndBytes - للـ 4-bit quantization
+bitsandbytes>=0.41.0
+
+# SentencePiece - مطلوب للـ tokenizer
+sentencepiece
 
 # FastAPI - إطار العمل للـ API
 fastapi>=0.110.0
@@ -19,8 +24,5 @@ fastapi>=0.110.0
 # Uvicorn - سيرفر ASGI
 uvicorn>=0.29.0
 
-# Pydantic - للتحقق من البيانات
-pydantic>=2.6.0
-
-# SentencePiece - للـ tokenization
-sentencepiece>=0.2.0
+# Python-Multipart - مطلوب لرفع الملفات (UploadFile)
+python-multipart>=0.0.9
