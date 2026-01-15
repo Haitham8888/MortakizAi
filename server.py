@@ -139,6 +139,19 @@ def delete_conversation(ip: str, conv_id: str) -> bool:
     return False
 
 
+def delete_all_conversations(ip: str) -> bool:
+    """Delete all conversations for an IP"""
+    data = _read_history()
+    user_data = data.get(ip, {})
+    if isinstance(user_data, list):
+        data[ip] = {"conversations": {}}
+    else:
+        user_data["conversations"] = {}
+        data[ip] = user_data
+    _write_history(data)
+    return True
+
+
 def create_conversation(ip: str, title: str = "محادثة") -> str:
     """Create a new empty conversation and return its ID"""
     data = _read_history()
@@ -253,6 +266,13 @@ async def get_conv(conv_id: str, request: Request):
 async def delete_conv(conv_id: str, request: Request):
     ip = _get_ip(request)
     success = delete_conversation(ip, conv_id)
+    return {"success": success}
+
+
+@app.delete("/v1/conversations")
+async def delete_all_convs(request: Request):
+    ip = _get_ip(request)
+    success = delete_all_conversations(ip)
     return {"success": success}
 
 

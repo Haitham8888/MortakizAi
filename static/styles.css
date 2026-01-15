@@ -722,6 +722,8 @@ pre {
 .sidebar__footer {
     padding: 12px;
     border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
 }
 
 .toggle-sidebar-btn {
@@ -744,12 +746,18 @@ pre {
     color: var(--accent);
 }
 
+.clear-all-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
 .toggle-sidebar-btn svg {
     width: 16px;
     height: 16px;
 }
 
-[dir="ltr"] .toggle-sidebar-btn svg {
+[dir="ltr"] #toggleSidebarBtn svg {
     transform: rotate(180deg);
 }
 

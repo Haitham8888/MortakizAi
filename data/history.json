@@ -1,8 +1,22 @@
 {
   "127.0.0.1": {
     "conversations": {
-      "dec2bb1e": {
-        "created_at": "2026-01-15T08:05:03.254136",
+      "a849758c": {
+        "created_at": "2026-01-15T08:09:12.040483",
+        "title": "hi",
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          },
+          {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today?"
+          }
+        ]
+      },
+      "c4c739ee": {
+        "created_at": "2026-01-15T08:09:18.479079",
         "title": "مرحبا",
         "messages": [
           {
@@ -15,8 +29,8 @@
           }
         ]
       },
-      "5a7706de": {
-        "created_at": "2026-01-15T08:05:17.940766",
+      "d939521f": {
+        "created_at": "2026-01-15T08:09:26.454571",
         "title": "كيف حالك ؟",
         "messages": [
           {

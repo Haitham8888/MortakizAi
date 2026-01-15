@@ -45,12 +45,11 @@ chat_history/
 ai_notes.json
 data/
 data/*
-data/histroy.json
+data/history.json
 # Database files
 *.db
 *.sqlite
 *.sqlite3
-data/history.json
 
 # Logs
 *.log
