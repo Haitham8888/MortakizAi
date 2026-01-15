@@ -559,6 +559,70 @@ pre {
     color: var(--text-secondary);
 }
 
+/* Markdown Table styling */
+.table-wrapper {
+    overflow-x: auto;
+    margin: 12px 0;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.md-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    background: var(--panel);
+}
+
+.md-table th {
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-weight: 600;
+    text-align: start;
+    padding: 12px 14px;
+    border-bottom: 2px solid var(--border);
+}
+
+.md-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.md-table tr:last-child td {
+    border-bottom: none;
+}
+
+.md-table tr:hover td {
+    background: rgba(92, 156, 230, 0.05);
+}
+
+/* File tags in messages */
+.file-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.file-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--accent-muted);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    border: 1px solid rgba(92, 156, 230, 0.25);
+}
+
+.file-tag svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
     .panel { min-height: 70vh; }
     .message { max-width: 90%; }
@@ -685,6 +749,7 @@ pre {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
 }
 
 .chat-item__delete {
@@ -694,6 +759,7 @@ pre {
     color: var(--muted);
     cursor: pointer;
     padding: 4px;
+    flex-shrink: 0;
     border-radius: 6px;
     transition: opacity 0.15s ease, color 0.15s ease;
 }

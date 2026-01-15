@@ -198,6 +198,16 @@
         }
 
         function formatMarkdown(text) {
+            // Tables: convert markdown tables to HTML
+            text = text.replace(/^(\|.+\|)\r?\n(\|[-:| ]+\|)\r?\n((?:\|.+\|\r?\n?)+)/gm, (match, header, separator, body) => {
+                const headers = header.split('|').filter(h => h.trim()).map(h => `<th>${h.trim()}</th>`).join('');
+                const rows = body.trim().split('\n').map(row => {
+                    const cells = row.split('|').filter(c => c.trim()).map(c => `<td>${c.trim()}</td>`).join('');
+                    return `<tr>${cells}</tr>`;
+                }).join('');
+                return `<div class="table-wrapper"><table class="md-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div>`;
+            });
+            
             // Bold: **text** or __text__
             text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
@@ -245,10 +255,14 @@
                 };
             });
         }
-        function addMessage(text, isAi) {
+        function addMessage(text, isAi, isHtml = false) {
             const div = document.createElement('div');
             div.className = `message ${isAi ? 'ai-msg' : 'user-msg'}`;
-            renderContent(text, div);
+            if (isHtml) {
+                div.innerHTML = `<div class="msg-text">${text}</div>`;
+            } else {
+                renderContent(text, div);
+            }
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
             updateHeroState();
@@ -311,11 +325,14 @@
             conversations.forEach(conv => {
                 const item = document.createElement('button');
                 item.className = `chat-item ${conv.id === currentConversationId ? 'chat-item--active' : ''}`;
+                // تنظيف العنوان - إزالة الأسطر الجديدة وقصه
+                let title = (conv.title || 'محادثة').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+                if (title.length > 35) title = title.substring(0, 35) + '...';
                 item.innerHTML = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
-                    <span class="chat-item__title">${conv.title || 'محادثة'}</span>
+                    <span class="chat-item__title">${title}</span>
                     <button class="chat-item__delete" data-conv-id="${conv.id}" title="حذف">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -369,16 +386,19 @@
         }
         
         async function clearAllConversations() {
-            if (!confirm(currentLang === 'ar' ? 'هل أنت متأكد من حذف جميع المحادثات؟' : 'Are you sure you want to delete all conversations?')) {
+            console.log('clearAllConversations called');
+            const msg = currentLang === 'ar' ? 'هل أنت متأكد من حذف جميع المحادثات؟' : 'Are you sure you want to delete all conversations?';
+            if (!confirm(msg)) {
                 return;
             }
             try {
-                await fetch('/v1/conversations', { method: 'DELETE' });
+                const resp = await fetch('/v1/conversations', { method: 'DELETE' });
+                console.log('Delete response:', resp.status);
                 currentConversationId = null;
                 showHero();
                 await loadConversations();
             } catch (e) {
-                // ignore
+                console.error('Delete error:', e);
             }
         }
         
@@ -449,10 +469,10 @@
             // Show user message with file names only (not content)
             let displayText = text;
             if (attachments.length > 0) {
-                const fileNames = attachments.map(a => `📎 ${a.name}`).join('، ');
-                displayText = text ? `${text}\n${fileNames}` : fileNames;
+                const fileNames = attachments.map(a => `<span class="file-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${a.name}</span>`).join(' ');
+                displayText = text ? `${text}<div class="file-tags">${fileNames}</div>` : `<div class="file-tags">${fileNames}</div>`;
             }
-            addMessage(displayText, false);
+            addMessage(displayText, false, attachments.length > 0);
             
             // Clear attachments after sending
             attachments = [];
