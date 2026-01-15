@@ -1,16 +1,21 @@
-import torch
-import uvicorn
-import json
+# ========== المكتبات المدمجة في Python ==========
 import os
+import io
+import json
+import re
 import uuid
+import zipfile
 from datetime import datetime
 from pathlib import Path
-import io
+from threading import Thread
+
+# ========== المكتبات الخارجية ==========
+import torch
+import uvicorn
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, BitsAndBytesConfig
-from threading import Thread
 
 # --- إعدادات الهوية والمسارات ---
 PROJECT_NAME = "مَرْتَكَز - MortakizAi"
@@ -212,9 +217,6 @@ def append_exchange(ip: str, user_text: str, assistant_text: str, conv_id: str =
 
 def _extract_docx_text(raw: bytes) -> str:
     try:
-        import zipfile
-        import re
-
         with zipfile.ZipFile(io.BytesIO(raw)) as zf:
             with zf.open("word/document.xml") as f:
                 xml = f.read().decode("utf-8", errors="ignore")
