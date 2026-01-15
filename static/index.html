@@ -488,6 +488,31 @@
             });
         }
         
+        // دالة لاستخراج نص العرض من المحتوى الكامل (إخفاء محتوى الملفات)
+        function extractDisplayText(content, isUser) {
+            if (!isUser) return content;
+            
+            // البحث عن نمط الملفات: "ملف: اسم_الملف\nمحتوى..."
+            const filePattern = /\n\nملف: ([^\n]+)\n[\s\S]*$/;
+            const match = content.match(filePattern);
+            
+            if (match) {
+                // استخراج النص قبل الملفات
+                const textOnly = content.replace(filePattern, '').trim();
+                // استخراج أسماء الملفات
+                const fileMatches = content.match(/ملف: ([^\n]+)/g) || [];
+                const fileNames = fileMatches.map(f => f.replace('ملف: ', ''));
+                
+                if (fileNames.length > 0) {
+                    const fileTags = fileNames.map(name => 
+                        `<span class="file-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${name}</span>`
+                    ).join(' ');
+                    return textOnly ? `${textOnly}<div class="file-tags">${fileTags}</div>` : `<div class="file-tags">${fileTags}</div>`;
+                }
+            }
+            return content;
+        }
+        
         async function loadConversation(convId) {
             try {
                 const res = await fetch(`/v1/conversations/${convId}`);
@@ -498,8 +523,11 @@
                 currentMessages = []; // إعادة تعيين المصفوفة
                 revealChat();
                 (data.messages || []).forEach(msg => {
-                    addMessage(msg.content || '', msg.role !== 'user');
-                    // تخزين الرسالة في المصفوفة
+                    const isUser = msg.role === 'user';
+                    const displayContent = extractDisplayText(msg.content || '', isUser);
+                    const hasHtml = displayContent.includes('<div class="file-tags">');
+                    addMessage(displayContent, !isUser, hasHtml);
+                    // تخزين الرسالة الكاملة في المصفوفة للسياق
                     currentMessages.push({
                         role: msg.role,
                         content: msg.content || ''
