@@ -36,8 +36,29 @@
           {
             "role": "assistant",
             "content": "بالطبع، إليك الكود في لغات البرمجة المختلفة التي طلبت:\n\n1. **Java:**\n```java\npublic class HelloWorld {\npublic static void main(String[] args) {\nSystem.out.println(\"Hello, World!\");\n }\n}\n```\n\n2. **Dart:**\n```dart\nvoid main() {\nprint('Hello, World!');\n}\n```\n\n3. **C++:**\n```cpp\n#include <iostream>\nusing namespace std;\n\nint main() {\ncout << \"Hello, World!\" << endl;\nreturn 0;\n}\n```\n\n4. **JavaScript:**\n```javascript\nconsole.log(\"Hello, World!\");\n```\n\nكل هذه الكودات تقوم بنفس المهمة وهي تطبع \"Hello, World!\" على الشاشة. يمكنك نسخ وصق كل منها في ملف مناسب للغة البرمجة المطلوبة ثم تشغيله باستخدام محرك مatching لغته."
+          },
+          {
+            "role": "user",
+            "content": "مرحبا"
+          },
+          {
+            "role": "assistant",
+            "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+          },
+          {
+            "role": "user",
+            "content": "من انت ؟"
+          },
+          {
+            "role": "assistant",
+            "content": "أنا Qwen، وهو مساعد ذكاء صناعي تم إنشاؤه بواسطة Alibaba Cloud. أنا هنا لمساعدتك في الإجابة على الأسئلة، تقديم المعلومات، وتساعدك في مجموعة واسعة من المهام. كيف يمكنني مساعدتك اليوم؟"
           }
         ]
+      },
+      "5cb58f77": {
+        "created_at": "2026-01-15T10:11:10.547262",
+        "title": "اكتب لي كود بالبايثون بسرعة بدون ما تشرح لخوارزمية",
+        "messages": []
       }
     }
   }

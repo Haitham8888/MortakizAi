@@ -196,6 +196,7 @@
         let attachments = [];
         let currentConversationId = null;
         let conversations = [];
+        let isGenerating = false;
         const SIDEBAR_KEY = 'mortakiz-sidebar';
 
         function escapeHTML(str) {
@@ -486,6 +487,8 @@
         }
 
         async function sendMessage() {
+            if (isGenerating) return;
+            
             const activeInput = getCurrentInput();
             const activeBtn = getCurrentSendBtn();
             const text = activeInput.value.trim();
@@ -493,7 +496,11 @@
             const combined = contextFromFiles ? `${text}\n\n${contextFromFiles}` : text;
             if (!combined) return;
 
+            isGenerating = true;
             activeInput.value = '';
+            activeInput.disabled = true;
+            userInput.disabled = true;
+            userInputChat.disabled = true;
             
             // Switch to chat view on first message
             if (chatPanel.classList.contains('hidden')) {
@@ -511,19 +518,41 @@
             // Clear attachments after sending
             attachments = [];
             renderAttachments();
-            activeBtn.disabled = true;
             sendBtn.disabled = true;
             sendBtnChat.disabled = true;
 
             const aiDiv = addMessage('...', true);
             let fullText = '';
 
+            // جمع كل رسائل المحادثة السابقة
+            const allMessages = [];
+            chatBox.querySelectorAll('.message').forEach(msgEl => {
+                const isUser = msgEl.classList.contains('user-msg');
+                const textEl = msgEl.querySelector('.msg-text');
+                if (textEl && msgEl !== aiDiv) {
+                    // استخراج النص بدون HTML
+                    const content = textEl.textContent || textEl.innerText || '';
+                    if (content.trim() && content !== '...') {
+                        allMessages.push({
+                            role: isUser ? 'user' : 'assistant',
+                            content: content.trim()
+                        });
+                    }
+                }
+            });
+            // إزالة آخر رسالة user لأننا سنضيفها مع combined
+            if (allMessages.length > 0 && allMessages[allMessages.length - 1].role === 'user') {
+                allMessages.pop();
+            }
+            // إضافة الرسالة الجديدة
+            allMessages.push({ role: 'user', content: combined });
+
             try {
                 const response = await fetch('/v1/chat/completions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        messages: [{ role: 'user', content: combined }],
+                        messages: allMessages,
                         conversation_id: currentConversationId
                     })
                 });
@@ -560,8 +589,11 @@
             } catch (err) {
                 renderContent(translations[currentLang].error, aiDiv);
             } finally {
+                isGenerating = false;
                 sendBtn.disabled = false;
                 sendBtnChat.disabled = false;
+                userInput.disabled = false;
+                userInputChat.disabled = false;
                 attachments = [];
                 renderAttachments();
                 userInputChat.focus();
