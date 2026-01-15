@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex">
+<body class="min-h-screen flex">
     <div class="bg-accent-glow"></div>
     
     <!-- Sidebar -->
@@ -38,13 +38,6 @@
     <header class="shadow-md">
         <div class="container mx-auto px-4 py-4 flex items-center justify-between max-w-5xl gap-4">
             <div class="flex items-center gap-3">
-                <div class="brand-mark" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2 4 6v5c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V6l-8-4Z"/>
-                        <path d="M9 12h6"/>
-                        <path d="M12 9v6"/>
-                    </svg>
-                </div>
                 <div>
                     <p id="subtitleText" class="text-xs sm:text-sm text-slate-400">مساعد البرمجة المحلي</p>
                     <p id="titleText" class="text-xl font-semibold text-sky-400">مَرْتَكَز - MortakizAi</p>
@@ -54,15 +47,6 @@
                 <button id="openSidebarBtn" class="sidebar-toggle-btn hidden" aria-label="فتح القائمة" title="فتح القائمة">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 12h18M3 6h18M3 18h18"/>
-                    </svg>
-                </button>
-                <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
-                    <svg id="iconMoon" class="icon-16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
-                    </svg>
-                    <svg id="iconSun" class="icon-16 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"/>
-                        <path d="M12 1v2M12 21v2M4.22 4.22 5.64 5.64M18.36 18.36 19.78 19.78M1 12h2M21 12h2M4.22 19.78 5.64 18.36M18.36 5.64 19.78 4.22"/>
                     </svg>
                 </button>
                 <button id="langToggle" class="lang-toggle" aria-label="تغيير اللغة">EN</button>
@@ -81,6 +65,7 @@
                         <path d="M12 5v14M5 12h14" />
                     </svg>
                 </button>
+                <div id="attachments" class="inline-attachments hidden"></div>
                 <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
                 <div class="hero__actions">
                     <button id="sendBtn" class="send-circle" aria-label="إرسال" title="إرسال">
@@ -90,20 +75,19 @@
                     </button>
                 </div>
             </div>
-            <div id="attachments" class="attachments hidden"></div>
         </section>
 
         <!-- Chat Section - يظهر بعد الإرسال -->
         <section id="chatPanel" class="chat-panel hidden">
             <div id="chatBox" class="chat-container"></div>
             <div class="chat-input-wrapper">
-                <div id="chatAttachments" class="attachments hidden"></div>
                 <div class="chat-input-bar">
                     <button class="icon-btn" aria-hidden="true" id="uploadBtnChat">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 5v14M5 12h14" />
                         </svg>
                     </button>
+                    <div id="chatAttachments" class="inline-attachments hidden"></div>
                     <input type="text" id="userInputChat" placeholder="اكتب سؤالك هنا..." class="input-field" autocomplete="off">
                     <button id="sendBtnChat" class="send-circle" aria-label="إرسال" title="إرسال">
                         <svg class="icon-18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -123,9 +107,6 @@
         const titleText = document.getElementById('titleText');
         const subtitleText = document.getElementById('subtitleText');
         const statusText = document.getElementById('statusText');
-        const themeToggle = document.getElementById('themeToggle');
-        const iconMoon = document.getElementById('iconMoon');
-        const iconSun = document.getElementById('iconSun');
         
         // Sidebar elements
         const sidebar = document.getElementById('sidebar');
@@ -197,21 +178,7 @@
         let attachments = [];
         let currentConversationId = null;
         let conversations = [];
-        const THEME_KEY = 'mortakiz-theme';
         const SIDEBAR_KEY = 'mortakiz-sidebar';
-
-        function applyTheme(mode) {
-            const theme = mode === 'light' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-            iconMoon.classList.toggle('hidden', theme === 'light');
-            iconSun.classList.toggle('hidden', theme === 'dark');
-            localStorage.setItem(THEME_KEY, theme);
-        }
-
-        (function initTheme() {
-            const saved = localStorage.getItem(THEME_KEY);
-            applyTheme(saved || 'dark');
-        })();
 
         function escapeHTML(str) {
             return str
@@ -396,13 +363,12 @@
         }
 
         function renderAttachments() {
-            let holder = document.getElementById('attachments');
-            if (!holder) {
-                holder = document.createElement('div');
-                holder.id = 'attachments';
-                holder.className = 'attachments';
-                hero.appendChild(holder);
-            }
+            // Get the appropriate container based on current view
+            const inHero = chatPanel.classList.contains('hidden');
+            const holder = inHero ? document.getElementById('attachments') : document.getElementById('chatAttachments');
+            
+            if (!holder) return;
+            
             holder.innerHTML = '';
             attachments.forEach((att, idx) => {
                 const chip = document.createElement('div');
@@ -414,7 +380,13 @@
                 holder.appendChild(chip);
             });
             holder.classList.toggle('hidden', attachments.length === 0);
-            holder.classList.toggle('attachments--list', true);
+            
+            // Also update the other holder to keep in sync
+            const otherHolder = inHero ? document.getElementById('chatAttachments') : document.getElementById('attachments');
+            if (otherHolder) {
+                otherHolder.innerHTML = holder.innerHTML;
+                otherHolder.classList.toggle('hidden', attachments.length === 0);
+            }
         }
 
         async function loadHistory() {
@@ -501,10 +473,6 @@
         userInputChat.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
-        themeToggle.addEventListener('click', () => {
-            const current = document.documentElement.getAttribute('data-theme') || 'dark';
-            applyTheme(current === 'dark' ? 'light' : 'dark');
-        });
 
         function applyLanguage(lang) {
             const t = translations[lang];
@@ -536,8 +504,9 @@
 
         uploadBtn.addEventListener('click', () => fileInput.click());
         uploadBtnChat.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files || []);
+        
+        // Drag and drop functionality
+        async function handleFileDrop(files) {
             if (!files.length) return;
             const form = new FormData();
             files.forEach(f => form.append('files', f));
@@ -549,9 +518,41 @@
                 renderAttachments();
             } catch (err) {
                 // ignore upload errors
-            } finally {
-                fileInput.value = '';
             }
+        }
+        
+        // Hero input drag and drop
+        const heroInput = document.getElementById('heroInputInitial');
+        const chatInputBar = document.querySelector('.chat-input-bar');
+        
+        [heroInput, chatInputBar].forEach(element => {
+            if (!element) return;
+            
+            element.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                element.classList.add('drag-over');
+            });
+            
+            element.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                element.classList.remove('drag-over');
+            });
+            
+            element.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                element.classList.remove('drag-over');
+                const files = Array.from(e.dataTransfer.files || []);
+                await handleFileDrop(files);
+            });
+        });
+        
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files || []);
+            await handleFileDrop(files);
+            fileInput.value = '';
         });
 
         document.addEventListener('click', (e) => {
