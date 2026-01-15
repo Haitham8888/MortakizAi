@@ -227,6 +227,71 @@
                 .replace(/'/g, '&#39;');
         }
 
+        // دالة لإصلاح المسافات البادئة في الكود
+        function fixCodeIndentation(code, lang) {
+            const lines = code.split('\n');
+            if (lines.length < 2) return code;
+            
+            // أنماط الكود الشائعة التي تحتاج مسافات
+            const indentPatterns = {
+                'java': [
+                    { match: /^(public|private|protected)\s+(static\s+)?(class|interface|enum)\s+/, indent: 0 },
+                    { match: /^(public|private|protected)\s+(static\s+)?[\w<>\[\]]+\s+\w+\s*\(/, indent: 1 },
+                    { match: /^\}$/, indent: 0, dedent: true },
+                    { match: /^(if|else|for|while|switch|try|catch|finally)\s*[\(\{]?/, indent: 2 },
+                    { match: /^(return|System\.|print|throw|break|continue)/, indent: 2 },
+                    { match: /^\w+\s*[=;]/, indent: 2 }
+                ],
+                'javascript': [
+                    { match: /^(function|class|const|let|var)\s+\w+/, indent: 0 },
+                    { match: /^\}$/, indent: 0, dedent: true },
+                    { match: /^(if|else|for|while|switch|try|catch)\s*[\(\{]?/, indent: 1 },
+                    { match: /^(return|console\.|throw)/, indent: 1 }
+                ],
+                'python': [
+                    { match: /^(def|class|async def)\s+/, indent: 0 },
+                    { match: /^(if|elif|else|for|while|try|except|finally|with)[\s:]/, indent: 1 },
+                    { match: /^(return|print|raise|pass|break|continue)/, indent: 2 }
+                ],
+                'c': [
+                    { match: /^(int|void|char|float|double|struct)\s+\w+\s*\(/, indent: 0 },
+                    { match: /^\}$/, indent: 0, dedent: true },
+                    { match: /^(if|else|for|while|switch)\s*\(/, indent: 1 },
+                    { match: /^(return|printf|break|continue)/, indent: 2 }
+                ]
+            };
+            
+            // تطبيق الإصلاح فقط إذا كان الكود بدون مسافات
+            const hasIndentation = lines.some(line => line.match(/^\s{2,}/));
+            if (hasIndentation) return code;
+            
+            const langKey = (lang || '').toLowerCase();
+            const patterns = indentPatterns[langKey] || indentPatterns['java'] || [];
+            
+            let braceLevel = 0;
+            const fixedLines = lines.map(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return '';
+                
+                // تتبع الأقواس المعقوفة
+                if (trimmed === '}') {
+                    braceLevel = Math.max(0, braceLevel - 1);
+                }
+                
+                const indent = '    '.repeat(braceLevel);
+                const result = indent + trimmed;
+                
+                // زيادة المستوى بعد فتح القوس
+                if (trimmed.endsWith('{')) {
+                    braceLevel++;
+                }
+                
+                return result;
+            });
+            
+            return fixedLines.join('\n');
+        }
+
         function formatMarkdown(text) {
             // Tables: convert markdown tables to HTML
             text = text.replace(/^(\|.+\|)\r?\n(\|[-:| ]+\|)\r?\n((?:\|.+\|\r?\n?)+)/gm, (match, header, separator, body) => {
@@ -282,6 +347,9 @@
                         if (code.startsWith('\n')) code = code.substring(1);
                         if (code.endsWith('\n')) code = code.substring(0, code.length - 1);
                     }
+                    
+                    // إصلاح المسافات البادئة إذا كانت مفقودة
+                    code = fixCodeIndentation(code, lang);
                     
                     const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
                     
