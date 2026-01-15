@@ -197,7 +197,26 @@
         let currentConversationId = null;
         let conversations = [];
         let isGenerating = false;
+        let userScrolledUp = false;
         const SIDEBAR_KEY = 'mortakiz-sidebar';
+
+        // تتبع الـ scroll
+        function isNearBottom() {
+            const threshold = 100;
+            return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < threshold;
+        }
+
+        function scrollToBottom() {
+            if (!userScrolledUp) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+
+        chatBox.addEventListener('scroll', () => {
+            if (isGenerating) {
+                userScrolledUp = !isNearBottom();
+            }
+        });
 
         function escapeHTML(str) {
             return str
@@ -249,11 +268,19 @@
                     // Extract language from first line if present
                     const lines = part.split('\n');
                     let lang = '';
-                    let code = part.trim();
+                    let code = part;
                     
                     if (lines[0] && /^[a-zA-Z0-9_+-]+$/.test(lines[0].trim())) {
                         lang = lines[0].trim().toLowerCase();
-                        code = lines.slice(1).join('\n').trim();
+                        // الحفاظ على المسافات الأصلية - فقط إزالة السطر الأول (اللغة)
+                        code = lines.slice(1).join('\n');
+                        // إزالة سطر فارغ واحد من البداية والنهاية فقط
+                        if (code.startsWith('\n')) code = code.substring(1);
+                        if (code.endsWith('\n')) code = code.substring(0, code.length - 1);
+                    } else {
+                        // إذا لم يكن هناك لغة، إزالة سطر فارغ من البداية والنهاية فقط
+                        if (code.startsWith('\n')) code = code.substring(1);
+                        if (code.endsWith('\n')) code = code.substring(0, code.length - 1);
                     }
                     
                     const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
@@ -299,7 +326,7 @@
                 renderContent(text, div);
             }
             chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollToBottom();
             updateHeroState();
             return div;
         }
@@ -497,6 +524,7 @@
             if (!combined) return;
 
             isGenerating = true;
+            userScrolledUp = false; // إعادة تعيين عند بدء رسالة جديدة
             activeInput.value = '';
             activeInput.disabled = true;
             userInput.disabled = true;
@@ -584,7 +612,7 @@
                             } catch (e) {}
                         }
                     }
-                    chatBox.scrollTop = chatBox.scrollHeight;
+                    scrollToBottom();
                 }
             } catch (err) {
                 renderContent(translations[currentLang].error, aiDiv);

@@ -58,7 +58,38 @@
       "5cb58f77": {
         "created_at": "2026-01-15T10:11:10.547262",
         "title": "اكتب لي كود بالبايثون بسرعة بدون ما تشرح لخوارزمية",
-        "messages": []
+        "messages": [
+          {
+            "role": "user",
+            "content": "اكتب لي كود بالبايثون بسرعة بدون ما تشرح لخوارزمية فابنوتشي"
+          },
+          {
+            "role": "assistant",
+            "content": "بالطبع، إليك الكود البسيط للعثور على العدد في سلسلة فبوناتشي باستخدام بايثون:\n\n```python\ndef fibonacci(n):\nif n <= 0:\nreturn \"العدد يجب أن يكون أكبر من صفر\"\nelif n == 1:\nreturn 0\nelif n == 2:\nreturn 1\nelse:\na, b = 0, 1\nfor _ in range(2, n):\na, b = b, a + b\nreturn b\n\n# استخدام الدالة\nn = 10\nprint(f\"الفعل {n} في سلسلة فبوناتشي هو: {fibonacci(n)}\")\n```\n\nهذا الكود يولد الرقم nth في سلسلة فبوناتشي."
+          },
+          {
+            "role": "user",
+            "content": "اكتبها الحين ب سي بلس بلس و جافا سكريبت ودارت و قو"
+          },
+          {
+            "role": "assistant",
+            "content": "بالطبع، إليك الكود لعثور على العدد في سلسلة فبوناتشي باستخدام لغات البرمجة المذكورة:\n\n1. C++:\n```cpp\n#include <iostream>\nusing namespace std;\n\nint fib(int n) {\nif (n <= 1)\nreturn n;\nelse\nreturn fib(n-1) + fib(n-2);\n}\n\nint main() {\nint num = 7; // يمكنك تغيير هذا الرقم\ncout << \"Fibonacci number at position \" << num << \" is \" << fib(num);\nreturn 0;\n}\n```\n\n2. JavaScript:\n```javascript\nfunction fib(n) {\nif (n <= 1)\nreturn n;\nelse\nreturn fib(n - 1) + fib(n - 2);\n}\n\nlet num = 7; // يمكنك تغيير هذا الرقم\nconsole.log(\"Fibonacci number at position \" + num + \" is \" + fib(num));\n```\n\n3. Dart:\n```dart\nvoid main() {\nint num = 7; // يمكنك تغيير هذا الرقم\nprint('Fibonacci number at position $num is ${fib(num)}');\n}\n\nint fib(int n) {\nif (n <= 1)\nreturn n;\nelse\nreturn fib(n - 1) + fib(n - 2);\n}\n```\n\n4. Kotlin:\n```kotlin\nfun fib(n: Int): Int {\nif (n <= 1)\nreturn n\nelse\nreturn fib(n - 1) + fib(n - 2)\n}\n\nfun main(args: Array<String>) {\nval num = 7 // يمكنك تغيير هذا الرقم\nprintln(\"Fibonacci number at position $num is ${fib(num)}\")\n}\n```\nتذكر أن هذه الكود يحسب الأعداد في السلسلة بشكل متكرر وقد يكون وقت التنفيذ كبيرًا بالنسبة للأرقام الكبيرة."
+          }
+        ]
+      },
+      "ded2f640": {
+        "created_at": "2026-01-15T10:14:30.522807",
+        "title": "اكتب لي كود بسرعة لطباعة بالجافا",
+        "messages": [
+          {
+            "role": "user",
+            "content": "اكتب لي كود بسرعة لطباعة بالجافا"
+          },
+          {
+            "role": "assistant",
+            "content": "بالتأكيد! إليك نموذج بسيط للبرنامج \"Hello World\" بلغة البرمجة Java:\n\n```java\npublic class HelloWorld {\npublic static void main(String[] args) {\nSystem.out.println(\"مرحبا بالعالم!\");\n }\n}\n```\n\nيمكنك إنشاء ملف بامتداد .java، مثل HelloWorld.java، ثم كتابة الكود أعلاه فيه.\n\nثم يمكنك استخدام محرر النصوص أو توليفة مثل IntelliJ IDEA، Eclipse، أو Visual Studio Code لكتابة وتشغيل البرنامج.\n\nعند تشغيل البرنامج، سترى رسالة \"مرحبا بالعالم!\" في واجهة الأمانة (console).\n\nأتمنى أن يكون هذا مفيدًا! إذا كنت تحتاج إلى أي مساعدة أخرى، فلا تتردد في طرح السؤال."
+          }
+        ]
       }
     }
   }
