@@ -5,6 +5,7 @@ import json
 import re
 import uuid
 import zipfile
+import gc
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
@@ -16,6 +17,9 @@ from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, BitsAndBytesConfig
+
+# تحسين تخصيص الذاكرة في CUDA
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
 # --- إعدادات الهوية والمسارات ---
 PROJECT_NAME = "مَرْتَكَز - MortakizAi"
@@ -53,12 +57,12 @@ loading_kwargs = {"device_map": "auto", "trust_remote_code": True}
 if device_count == 0:
     # CPU فقط
     loading_kwargs = {"device_map": {"": "cpu"}, "torch_dtype": torch.float32, "trust_remote_code": True}
-elif total_vram_gb > 20:
-    # VRAM كافية - استخدام bfloat16 للدقة العالية
+elif total_vram_gb > 30:
+    # VRAM كافية جداً - استخدام bfloat16 للدقة العالية
     loading_kwargs["torch_dtype"] = torch.bfloat16
     print(f"✅ استخدام bfloat16 (VRAM كافية)")
 else:
-    # VRAM محدودة - استخدام 4-bit quantization
+    # VRAM محدودة - استخدام 4-bit quantization (توفير أقصى)
     loading_kwargs["quantization_config"] = BitsAndBytesConfig(
         load_in_4bit=True, 
         bnb_4bit_compute_dtype=torch.float16, 
@@ -70,6 +74,12 @@ else:
 # 3. تحميل الموديل والـ Tokenizer
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, fix_mistral_regex=True)
 model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **loading_kwargs)
+
+# تنظيف الذاكرة بعد التحميل
+if device_count > 0:
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
+    gc.collect()
 
 stop_tokens = ["<|im_end|>", "<|endoftext|>", "###"]
 
@@ -327,8 +337,18 @@ async def chat_completions(request: Request):
 
     ip = _get_ip(request)
 
-    generation_kwargs = dict(**inputs, streamer=streamer, max_new_tokens=2048, temperature=0.7, do_sample=True)
-    Thread(target=model.generate, kwargs=generation_kwargs).start()
+    generation_kwargs = dict(**inputs, streamer=streamer, max_new_tokens=1024, temperature=0.7, do_sample=True)
+    
+    def generate_with_cleanup():
+        try:
+            model.generate(**generation_kwargs)
+        finally:
+            # تنظيف الذاكرة بعد الإنشاء
+            if device_count > 0:
+                torch.cuda.empty_cache()
+            gc.collect()
+    
+    Thread(target=generate_with_cleanup).start()
 
     full_text = ""
     new_conv_id = conv_id
