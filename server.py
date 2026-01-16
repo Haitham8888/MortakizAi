@@ -319,60 +319,137 @@ async def upload_files(request: Request, files: list[UploadFile] = File(...)):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
-    data = await request.json()
+    """Multi-purpose endpoint - يدعم Streaming و Non-streaming"""
+    try:
+        data = await request.json()
+    except:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    
     messages = data.get("messages", [])
+    stream = data.get("stream", False)  # تحقق إذا كان streaming مطلوب
     conv_id = data.get("conversation_id")
     
-    # تنظيف سريع
+    # تنظيف الرسائل
     cleaned = []
     for m in messages:
         content = m.get("content", "")
-        if isinstance(content, list): content = " ".join([str(i) for i in content])
+        if isinstance(content, list): 
+            content = " ".join([str(i) for i in content])
         cleaned.append({"role": m.get("role"), "content": content})
+    
+    # إضافة system prompt للحفاظ على formatting الكود
+    if cleaned and cleaned[0].get("role") != "system":
+        cleaned.insert(0, {
+            "role": "system", 
+            "content": "You are a helpful coding assistant. Always preserve proper code formatting, indentation, and whitespace in your responses."
+        })
 
     user_text = cleaned[-1].get("content", "") if cleaned else ""
+    ip = _get_ip(request)
+    
+    # تحضير الإدخال
     input_text = tokenizer.apply_chat_template(cleaned, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer([input_text], return_tensors="pt").to(model.device)
-    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-
-    ip = _get_ip(request)
-
-    generation_kwargs = dict(**inputs, streamer=streamer, max_new_tokens=1024, temperature=0.7, do_sample=True)
     
-    def generate_with_cleanup():
+    # إذا كان streaming، استخدم streaming response
+    if stream:
+        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+        generation_kwargs = dict(**inputs, streamer=streamer, max_new_tokens=1024, temperature=0.7, do_sample=True)
+        
+        def generate_with_cleanup():
+            try:
+                model.generate(**generation_kwargs)
+            finally:
+                if device_count > 0:
+                    torch.cuda.empty_cache()
+                gc.collect()
+        
+        Thread(target=generate_with_cleanup).start()
+        full_text = ""
+        new_conv_id = conv_id
+
+        async def generate():
+            nonlocal full_text, new_conv_id
+            if not conv_id:
+                new_conv_id = create_conversation(ip, user_text[:50] if user_text else "محادثة")
+                yield f"data: {json.dumps({'conversation_id': new_conv_id})}\n\n"
+            
+            for text in streamer:
+                if await request.is_disconnected():
+                    break
+                if not text.strip():
+                    continue
+                full_text += text
+                if any(s in text for s in stop_tokens):
+                    break
+                yield f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n"
+            
+            append_exchange(ip, user_text, full_text, new_conv_id or conv_id)
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(generate(), media_type="text/event-stream")
+    
+    # Non-streaming response (للـ Cline)
+    else:
         try:
-            model.generate(**generation_kwargs)
-        finally:
-            # تنظيف الذاكرة بعد الإنشاء
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=1024,
+                    temperature=0.7,
+                    do_sample=True,
+                    pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
+                )
+            
+            # فك التشفير مع الحفاظ على التنسيق والمسافات
+            full_text = tokenizer.decode(
+                outputs[0][inputs['input_ids'].shape[1]:], 
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False  # الحفاظ على المسافات الأصلية
+            )
+            
+            # توقف عند علامات التوقف
+            for stop_token in stop_tokens:
+                if stop_token in full_text:
+                    full_text = full_text.split(stop_token)[0]
+                    break
+            
+            # حفظ المحادثة
+            new_conv_id = conv_id or create_conversation(ip, user_text[:50] if user_text else "محادثة")
+            append_exchange(ip, user_text, full_text, new_conv_id)
+            
+            # تنظيف الذاكرة
             if device_count > 0:
                 torch.cuda.empty_cache()
             gc.collect()
-    
-    Thread(target=generate_with_cleanup).start()
+            
+            # إرجاع الرد بصيغة OpenAI القياسية
+            return {
+                "id": f"chatcmpl-{uuid.uuid4()}",
+                "object": "chat.completion",
+                "created": int(datetime.now().timestamp()),
+                "model": "qwen2.5-coder-7b",
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": full_text
+                    },
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": inputs['input_ids'].shape[1],
+                    "completion_tokens": outputs.shape[1] - inputs['input_ids'].shape[1],
+                    "total_tokens": outputs.shape[1]
+                }
+            }
+        
+        except Exception as e:
+            if device_count > 0:
+                torch.cuda.empty_cache()
+            gc.collect()
+            return JSONResponse({"error": str(e)}, status_code=500)
 
-    full_text = ""
-    new_conv_id = conv_id
-
-    async def generate():
-        nonlocal full_text, new_conv_id
-        # Create conversation early if not provided (saves to file immediately)
-        if not conv_id:
-            new_conv_id = create_conversation(ip, user_text[:50] if user_text else "محادثة")
-            yield f"data: {json.dumps({'conversation_id': new_conv_id})}\n\n"
-        yield f"data: {json.dumps({'choices': [{'delta': {'role': 'assistant', 'content': ''}}]})}\n\n"
-        for text in streamer:
-            if await request.is_disconnected():
-                break
-            if not text.strip():
-                continue
-            full_text += text
-            if any(s in text for s in stop_tokens):
-                break
-            yield f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n"
-        append_exchange(ip, user_text, full_text, new_conv_id or conv_id)
-        yield "data: [DONE]\n\n"
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     print(f"✅ [ {PROJECT_NAME} ] جاهز!")
