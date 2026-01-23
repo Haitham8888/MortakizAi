@@ -1,6 +1,6 @@
 {
   "apiProvider": "openai-compatible",
-  "apiBaseUrl": "http://localhost:8000/v1/chat/completions-simple",
-  "apiKey": "your-key-here",
-  "model": "qwen2.5-coder-7b"
+  "apiBaseUrl": "http://localhost:8000/v1",
+  "apiKey": "sk-any-string",
+  "model": "qwen"
 }

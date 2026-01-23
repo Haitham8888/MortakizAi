@@ -78,15 +78,16 @@ else:
     )
     print(f"✅ استخدام 4-bit quantization (توفير VRAM)")
 
-# 3. تحميل الموديل والـ Tokenizer
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, fix_mistral_regex=True)
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **loading_kwargs)
-
-# تنظيف الذاكرة بعد التحميل
-if device_count > 0:
-    torch.cuda.empty_cache()
-    torch.cuda.synchronize()
-    gc.collect()
+if not USE_OPENROUTER:
+    # 3. تحميل الموديل والـ Tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, fix_mistral_regex=True)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **loading_kwargs)
+    
+    # تنظيف الذاكرة بعد التحميل
+    if device_count > 0:
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+        gc.collect()
 
 stop_tokens = ["<|im_end|>", "<|endoftext|>", "###"]
 
@@ -379,20 +380,31 @@ async def chat_completions(request: Request):
                         conv_id = create_conversation(ip, user_text[:50] if user_text else "محادثة")
                         yield f"data: {json.dumps({'conversation_id': conv_id})}\n\n"
                     
-                    with requests.post(OPENROUTER_API_URL, json=payload, headers=headers, stream=True) as r:
-                        r.raise_for_status()
-                        for line in r.iter_lines():
-                            if line:
-                                txt = line.decode('utf-8')
-                                if txt.startswith("data: ") and "[DONE]" not in txt:
-                                    try:
-                                        chunk = json.loads(txt[6:])
-                                        if "choices" in chunk and chunk["choices"]:
-                                            delta = chunk["choices"][0].get("delta", {}).get("content", "")
-                                            full_resp += delta
-                                    except:
-                                        pass
-                                yield txt + "\n\n"
+                    try:
+                        with requests.post(OPENROUTER_API_URL, json=payload, headers=headers, stream=True) as r:
+                            if r.status_code == 401:
+                                error_msg = "🚨 **خطأ في المصادقة (401):** مفتاح OpenRouter API غير صحيح أو منتهي الصلاحية. يرجى التحقق من المتغير `OPENROUTER_API_KEY` في ملف `server.py`."
+                                print(f"❌ {error_msg}")
+                                yield f"data: {json.dumps({'choices': [{'delta': {'content': error_msg}}]})}\n\n"
+                                return
+
+                            r.raise_for_status()
+                            for line in r.iter_lines():
+                                if line:
+                                    txt = line.decode('utf-8')
+                                    if txt.startswith("data: ") and "[DONE]" not in txt:
+                                        try:
+                                            chunk = json.loads(txt[6:])
+                                            if "choices" in chunk and chunk["choices"]:
+                                                delta = chunk["choices"][0].get("delta", {}).get("content", "")
+                                                full_resp += delta
+                                        except:
+                                            pass
+                                    yield txt + "\n\n"
+                    except Exception as e:
+                        error_text = f"\n\n❌ **OpenRouter Error:** {str(e)}"
+                        print(error_text)
+                        yield f"data: {json.dumps({'choices': [{'delta': {'content': error_text}}]})}\n\n"
                     
                     append_exchange(ip, user_text, full_resp, conv_id)
                     yield "data: [DONE]\n\n"
