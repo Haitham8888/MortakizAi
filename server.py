@@ -1,5 +1,6 @@
 # ========== المكتبات المدمجة في Python ==========
 import os
+import requests
 import io
 import json
 import re
@@ -22,6 +23,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStream
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
 # --- إعدادات الهوية والمسارات ---
+# --- OpenRouter Temporary Config ---
+USE_OPENROUTER = True
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Put your API key here if not in env
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_MODEL_ID = "qwen/qwen3-coder-30b-a3b-instruct"
+
 PROJECT_NAME = "مَرْتَكَز - MortakizAi"
 path_options = ["./models_cache/models--Qwen--Qwen2.5-Coder-7B-Instruct", "./qwen-coder"]
 MODEL_PATH = ""
@@ -347,6 +354,67 @@ async def chat_completions(request: Request):
     user_text = cleaned[-1].get("content", "") if cleaned else ""
     ip = _get_ip(request)
     
+    # === OPENROUTER INTEGRATION ===
+    if USE_OPENROUTER:
+        try:
+            print(f"🔄 Using OpenRouter: {OPENROUTER_MODEL_ID}")
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "http://localhost:8000"
+            }
+            payload = {
+                "model": OPENROUTER_MODEL_ID,
+                "messages": cleaned,
+                "stream": stream,
+                "temperature": 0.7
+            }
+            
+            if stream:
+                def iter_openrouter():
+                    nonlocal conv_id
+                    full_resp = ""
+                    # Ensure conversation exists
+                    if not conv_id:
+                        conv_id = create_conversation(ip, user_text[:50] if user_text else "محادثة")
+                        yield f"data: {json.dumps({'conversation_id': conv_id})}\n\n"
+                    
+                    with requests.post(OPENROUTER_API_URL, json=payload, headers=headers, stream=True) as r:
+                        r.raise_for_status()
+                        for line in r.iter_lines():
+                            if line:
+                                txt = line.decode('utf-8')
+                                if txt.startswith("data: ") and "[DONE]" not in txt:
+                                    try:
+                                        chunk = json.loads(txt[6:])
+                                        if "choices" in chunk and chunk["choices"]:
+                                            delta = chunk["choices"][0].get("delta", {}).get("content", "")
+                                            full_resp += delta
+                                    except:
+                                        pass
+                                yield txt + "\n\n"
+                    
+                    append_exchange(ip, user_text, full_resp, conv_id)
+                    yield "data: [DONE]\n\n"
+
+                return StreamingResponse(iter_openrouter(), media_type="text/event-stream")
+            
+            else:
+                resp = requests.post(OPENROUTER_API_URL, json=payload, headers=headers)
+                resp.raise_for_status()
+                data_resp = resp.json()
+                
+                ai_text = data_resp["choices"][0]["message"]["content"]
+                conv_id = conv_id or create_conversation(ip, user_text[:50] if user_text else "محادثة")
+                append_exchange(ip, user_text, ai_text, conv_id)
+                
+                return data_resp
+
+        except Exception as e:
+            print(f"❌ OpenRouter Error: {e}")
+            return JSONResponse({"error": str(e)}, status_code=500)
+    # ==============================
+
     # تحضير الإدخال
     input_text = tokenizer.apply_chat_template(cleaned, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer([input_text], return_tensors="pt").to(model.device)
