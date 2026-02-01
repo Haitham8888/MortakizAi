@@ -32,9 +32,35 @@ OPENROUTER_MODEL_ID = "qwen/qwen3-coder-30b-a3b-instruct"
 PROJECT_NAME = "مَرْتَكَز - MortakizAi"
 path_options = ["./models_cache/models--Qwen--Qwen2.5-Coder-7B-Instruct", "./qwen-coder"]
 MODEL_PATH = ""
+
+def find_model_path(base_path):
+    """البحث عن مسار النموذج - يدعم المسار المباشر أو snapshot"""
+    if not os.path.exists(base_path):
+        return None
+    
+    # تحقق إذا كان المسار يحتوي على config.json مباشرة
+    if os.path.exists(os.path.join(base_path, "config.json")):
+        return os.path.abspath(base_path)
+    
+    # ابحث عن snapshots
+    snapshots_dir = os.path.join(base_path, "snapshots")
+    if os.path.exists(snapshots_dir):
+        # احصل على أحدث snapshot
+        snapshot_folders = [f for f in os.listdir(snapshots_dir) 
+                          if os.path.isdir(os.path.join(snapshots_dir, f))]
+        if snapshot_folders:
+            # استخدم أول snapshot (أو يمكنك ترتيبهم حسب التاريخ)
+            snapshot_path = os.path.join(snapshots_dir, snapshot_folders[0])
+            if os.path.exists(os.path.join(snapshot_path, "config.json")):
+                print(f"📦 تم العثور على snapshot: {snapshot_folders[0]}")
+                return os.path.abspath(snapshot_path)
+    
+    return None
+
 for p in path_options:
-    if os.path.exists(p):
-        MODEL_PATH = os.path.abspath(p)
+    found_path = find_model_path(p)
+    if found_path:
+        MODEL_PATH = found_path
         break
 
 if not MODEL_PATH:
