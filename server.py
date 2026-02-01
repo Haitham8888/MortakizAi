@@ -559,5 +559,5 @@ async def chat_completions(request: Request):
 
 if __name__ == "__main__":
     print(f"✅ [ {PROJECT_NAME} ] جاهز!")
-    print(f"🌐 واجهة الويب متاحة على: http://localhost:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="error")
+    print(f"🌐 واجهة الويب متاحة على: http://localhost:8080")
+    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="error")
