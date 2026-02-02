@@ -469,7 +469,7 @@ header {
     border: none;
     box-shadow: none;
     word-break: break-word;
-    white-space: pre-wrap;
+    white-space: normal;
 }
 
 @media (max-width: 900px) {
@@ -502,6 +502,7 @@ body.dir-ltr .ai-msg {
     text-align: start;
     direction: auto;
     unicode-bidi: plaintext;
+    white-space: pre-wrap;
 }
 
 .msg-text:empty {
@@ -558,17 +559,26 @@ body.dir-ltr .ai-msg {
 .send-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; background: var(--muted); }
 
 pre {
-    background: #161616;
-    padding: 16px;
-    border-radius: 12px;
-    overflow-x: auto;
-    color: #e8e8e8;
+    background: var(--panel);
+    padding: 0;
+    margin: 0;
+    border-radius: 10px;
+    overflow: auto;
+    color: var(--text);
     direction: ltr;
     text-align: left;
     border: 1px solid var(--border);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 13px;
-    line-height: 1.6;
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+pre code {
+    display: block;
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+    word-break: normal;
 }
 
 /* Inline code styling */
@@ -725,6 +735,7 @@ pre {
     color: var(--accent);
     font-weight: 600;
     font-size: 0.95rem;
+        line-height: 1.4;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -922,70 +933,88 @@ header .theme-toggle:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
-/* ===== Code Block Styling ===== */
+/* ===== Code Block Styling (Rebuilt) ===== */
 .code-block {
     background: var(--panel);
-    border-radius: 8px;
-    margin: 1.5em 0;
-    overflow: hidden;
     border: 1px solid var(--border);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    margin: 0;
+    overflow: hidden;
+    box-shadow: none;
+    width: 100%;
+    padding: 0;
 }
 
 .code-block-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 16px;
+    gap: 10px;
+    padding: 6px 10px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
+    min-height: 32px;
+    margin: 0;
 }
 
 .code-block-lang {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     font-weight: 600;
+    letter-spacing: 0.2px;
+    text-transform: lowercase;
 }
 
 .copy-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 8px;
-    background: none;
+    padding: 3px 8px;
+    background: transparent;
     color: var(--text-secondary);
-    border: none;
-    border-radius: 4px;
+    border: 1px solid transparent;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 0.85rem;
-    transition: color 0.3s, background-color 0.3s;
+    font-size: 0.8rem;
+    line-height: 1;
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.copy-btn:hover { 
+.copy-btn:hover {
     color: var(--accent);
     background-color: var(--accent-muted);
+    border-color: rgba(92, 156, 230, 0.3);
 }
 
 .copy-btn svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
 }
 
 .code-block pre {
     margin: 0;
-    padding: 16px;
-    overflow-x: auto;
+    padding: 0;
+    overflow: auto;
     direction: ltr;
     text-align: left;
-    background: var(--panel);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
 }
 
 .code-block pre code {
-    font-family: Menlo, Monaco, Consolas, 'Courier New', monospace !important;
-    font-size: 0.95rem;
-    line-height: 1.5;
+    display: block;
+    margin: 0;
+    padding: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace !important;
+    font-size: 0.92rem;
+    line-height: 1.4;
     color: var(--text);
     white-space: pre;
-    display: block;
-    word-break: break-word;
+    word-break: normal;
+    text-indent: 0;
+    word-spacing: normal;
+    letter-spacing: normal;
+    tab-size: 4;
+    -moz-tab-size: 4;
 }

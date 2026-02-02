@@ -1,5 +1,20 @@
 {
   "127.0.0.1": {
-    "conversations": {}
+    "conversations": {
+      "8a6ffde0": {
+        "created_at": "2026-02-02T11:25:07.331244",
+        "title": "اكتب لي كود بالبايثون فابنتوشي",
+        "messages": [
+          {
+            "role": "user",
+            "content": "اكتب لي كود بالبايثون فابنتوشي"
+          },
+          {
+            "role": "assistant",
+            "content": "بالطبع! إليك مثال بسيط على كيفية استخدام Flask (بلاينكوتي) لإنشاء تطبيق سيرفر ويب البسيط:\n\n```python\nfrom flask import Flask\n\napp = Flask(__name__)\n\n@app.route('/')\ndef hello_world():\nreturn 'Hello, World!'\n\nif __name__ == '__main__':\napp.run(debug=True)\n```\n\nهذا الكود يقوم بإنشاء تطبيق Flask بسيط يعرض رسالة \"Hello, World!\" عند زيارته في الرابط الرئيسي (`http://127.0.0.1:5000/`). يمكنك تشغيل هذا التطبيق عن طريق حفظ الكود في ملف `.py` ثم تشغيله باستخدام الأمر `python اسم_الملف.py`.\n\nإذا كنت تحتاج إلى أي شيء آخر أو لديك أسئلة إضافية، فأنا هنا لمساعدتك!"
+          }
+        ]
+      }
+    }
   }
 }
