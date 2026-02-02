@@ -56,7 +56,8 @@ const translations = {
         deleteAll: 'حذف جميع المحادثات',
         hideSidebar: 'إخفاء القائمة',
         openSidebar: 'فتح القائمة',
-        delete: 'حذف'
+        delete: 'حذف',
+        fileReadError: 'تعذر قراءة بعض الملفات. جرّب حفظها كنص عادي أو إعادة رفعها.'
     },
     en: {
         dir: 'ltr',
@@ -80,7 +81,8 @@ const translations = {
         deleteAll: 'Delete all chats',
         hideSidebar: 'Hide sidebar',
         openSidebar: 'Open sidebar',
-        delete: 'Delete'
+        delete: 'Delete',
+        fileReadError: 'Some files could not be read. Please save them as plain text and re-upload.'
     }
 };
 
@@ -501,9 +503,10 @@ function renderAttachments() {
     holder.innerHTML = '';
     attachments.forEach((att, idx) => {
         const chip = document.createElement('div');
-        chip.className = 'attach-chip';
+        const unreadable = !att.content || !att.content.trim();
+        chip.className = `attach-chip${unreadable ? ' attach-chip--error' : ''}`;
         chip.innerHTML = `
-            <span class="attach-name">${att.name}</span>
+            <span class="attach-name">${att.name}${unreadable ? ' (غير مقروء)' : ''}</span>
             <button aria-label="remove" data-idx="${idx}" class="attach-remove">×</button>
         `;
         holder.appendChild(chip);
@@ -529,6 +532,12 @@ async function sendMessage() {
     const activeInput = getCurrentInput();
     const activeBtn = getCurrentSendBtn();
     const text = activeInput.value.trim();
+    const hasUnreadable = attachments.some(a => !a.content || !a.content.trim());
+    if (hasUnreadable) {
+        alert(translations[currentLang].fileReadError);
+        return;
+    }
+
     const contextFromFiles = attachments.map(a => `ملف: ${a.name}\n${a.content}`).join('\n\n');
     const combined = contextFromFiles ? `${text}\n\n${contextFromFiles}` : text;
     if (!combined) return;
@@ -582,9 +591,20 @@ async function sendMessage() {
         const contentType = response.headers.get('content-type') || '';
         aiDiv.innerText = '';
 
+        if (!response.ok) {
+            let errMsg = translations[currentLang].error;
+            try {
+                const errData = await response.json();
+                if (errData?.error) errMsg = `❌ ${errData.error}`;
+            } catch (e) {}
+            fullText = errMsg;
+            renderContent(fullText, aiDiv);
+            return;
+        }
+
         if (!response.body || contentType.includes('application/json')) {
             const data = await response.json();
-            const msg = data?.choices?.[0]?.message?.content || data?.error || '';
+            const msg = data?.choices?.[0]?.message?.content || (data?.error ? `❌ ${data.error}` : '') || '';
             if (data?.conversation_id) {
                 currentConversationId = data.conversation_id;
             }

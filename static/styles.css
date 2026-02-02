@@ -290,6 +290,12 @@ header {
     font-size: 0.85rem;
 }
 
+.attach-chip--error {
+    background: rgba(220, 80, 80, 0.12);
+    border-color: rgba(220, 80, 80, 0.45);
+    color: #ff9a9a;
+}
+
 .attach-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .attach-remove {
@@ -503,6 +509,15 @@ body.dir-ltr .ai-msg {
     direction: auto;
     unicode-bidi: plaintext;
     white-space: pre-wrap;
+}
+
+.msg-text .error-text {
+    color: #ff9a9a;
+    background: rgba(220, 80, 80, 0.12);
+    border: 1px solid rgba(220, 80, 80, 0.45);
+    padding: 6px 10px;
+    border-radius: 8px;
+    display: inline-block;
 }
 
 .msg-text:empty {

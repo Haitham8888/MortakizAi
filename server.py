@@ -293,7 +293,18 @@ def _extract_text(file: UploadFile, raw: bytes) -> str:
         return raw.decode("utf-8")
     except Exception:
         try:
-            return raw.decode("latin-1")
+            return raw.decode("utf-8-sig")
+        except Exception:
+            try:
+                return raw.decode("utf-16")
+            except Exception:
+                try:
+                    return raw.decode("cp1256")
+                except Exception:
+                    try:
+                        return raw.decode("latin-1")
+                    except Exception:
+                        return ""
         except Exception:
             return ""
 
@@ -346,7 +357,8 @@ async def upload_files(request: Request, files: list[UploadFile] = File(...)):
         saved.append({
             "name": f.filename,
             "size": len(raw),
-            "content": text[:config.MAX_FILE_CONTENT_LENGTH]
+            "content": text[:config.MAX_FILE_CONTENT_LENGTH],
+            "content_length": len(text)
         })
     return {"files": saved}
 
