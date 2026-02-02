@@ -24,7 +24,7 @@ os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
 # --- إعدادات الهوية والمسارات ---
 # --- OpenRouter Temporary Config ---
-USE_OPENROUTER = True
+USE_OPENROUTER = False
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Put your API key here if not in env
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL_ID = "qwen/qwen3-coder-30b-a3b-instruct"
