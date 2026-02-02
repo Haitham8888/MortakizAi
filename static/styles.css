@@ -935,12 +935,12 @@ header .theme-toggle:hover {
 
 /* ===== Code Block Styling (Rebuilt) ===== */
 .code-block {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    background: #151515;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
     margin: 0;
     overflow: hidden;
-    box-shadow: none;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
     width: 100%;
     padding: 0;
 }
@@ -950,18 +950,18 @@ header .theme-toggle:hover {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 6px 10px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    min-height: 32px;
+    padding: 8px 12px;
+    background: #1b1b1b;
+    border-bottom: 1px solid #2a2a2a;
+    min-height: 34px;
     margin: 0;
 }
 
 .code-block-lang {
-    color: var(--text-secondary);
-    font-size: 0.75rem;
+    color: #b8b8b8;
+    font-size: 0.78rem;
     font-weight: 600;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.4px;
     text-transform: lowercase;
 }
 
@@ -969,21 +969,21 @@ header .theme-toggle:hover {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 8px;
+    padding: 4px 9px;
     background: transparent;
-    color: var(--text-secondary);
+    color: #b8b8b8;
     border: 1px solid transparent;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     line-height: 1;
     transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .copy-btn:hover {
-    color: var(--accent);
-    background-color: var(--accent-muted);
-    border-color: rgba(92, 156, 230, 0.3);
+    color: #d7e7ff;
+    background-color: rgba(92, 156, 230, 0.12);
+    border-color: rgba(92, 156, 230, 0.35);
 }
 
 .copy-btn svg {
@@ -993,11 +993,11 @@ header .theme-toggle:hover {
 
 .code-block pre {
     margin: 0;
-    padding: 0;
+    padding: 12px 14px;
     overflow: auto;
     direction: ltr;
     text-align: left;
-    background: transparent;
+    background: #101010;
     border: 0;
     border-radius: 0;
 }
@@ -1007,9 +1007,9 @@ header .theme-toggle:hover {
     margin: 0;
     padding: 0;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace !important;
-    font-size: 0.92rem;
-    line-height: 1.4;
-    color: var(--text);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #e6e6e6;
     white-space: pre;
     word-break: normal;
     text-indent: 0;
