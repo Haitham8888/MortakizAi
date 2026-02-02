@@ -19,18 +19,14 @@ from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, BitsAndBytesConfig
 
+# ========== ملف الإعدادات ==========
+import config
+
 # تحسين تخصيص الذاكرة في CUDA
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+if config.CUDA_MEMORY_OPTIMIZATION:
+    os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
 # --- إعدادات الهوية والمسارات ---
-# --- OpenRouter Temporary Config ---
-USE_OPENROUTER = False
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")  # Put your API key here if not in env
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL_ID = "qwen/qwen3-coder-30b-a3b-instruct"
-
-PROJECT_NAME = "مَرْتَكَز - MortakizAi"
-path_options = ["./models_cache/models--Qwen--Qwen2.5-Coder-7B-Instruct", "./qwen-coder"]
 MODEL_PATH = ""
 
 def find_model_path(base_path):
@@ -57,22 +53,27 @@ def find_model_path(base_path):
     
     return None
 
-for p in path_options:
+for p in config.MODEL_PATH_OPTIONS:
     found_path = find_model_path(p)
     if found_path:
         MODEL_PATH = found_path
         break
 
-if not MODEL_PATH:
+if not MODEL_PATH and not config.USE_OPENROUTER:
     raise RuntimeError("❌ لم يتم العثور على مجلد الموديل.")
 
 # 1. فحص العتاد
 device_count = torch.cuda.device_count()
+
+# تطبيق حد عدد الكروت من الإعدادات
+if config.MAX_GPU_COUNT is not None and device_count > config.MAX_GPU_COUNT:
+    device_count = config.MAX_GPU_COUNT
+    
 total_vram_gb = 0
 
 if device_count > 0:
-    print(f"🚀 [ {PROJECT_NAME} ] يبدأ العمل...")
-    print(f"🖥️ عدد كروت الشاشة المتاحة: {device_count}")
+    print(f"🚀 [ {config.PROJECT_NAME} ] يبدأ العمل...")
+    print(f"🖥️ عدد كروت الشاشة المستخدمة: {device_count}")
     
     for i in range(device_count):
         gpu_name = torch.cuda.get_device_name(i)
@@ -82,15 +83,15 @@ if device_count > 0:
     
     print(f"📊 إجمالي VRAM: {total_vram_gb:.1f} GB")
 else:
-    print(f"🚀 [ {PROJECT_NAME} ] يبدأ العمل...")
+    print(f"🚀 [ {config.PROJECT_NAME} ] يبدأ العمل...")
     print(f"⚠️ لا يوجد GPU متاح - سيتم استخدام CPU")
 
 # 2. استراتيجية التحميل
-loading_kwargs = {"device_map": "auto", "trust_remote_code": True}
+loading_kwargs = {"device_map": "auto", "trust_remote_code": config.TRUST_REMOTE_CODE}
 if device_count == 0:
     # CPU فقط
-    loading_kwargs = {"device_map": {"": "cpu"}, "torch_dtype": torch.float32, "trust_remote_code": True}
-elif total_vram_gb > 30:
+    loading_kwargs = {"device_map": {"": "cpu"}, "torch_dtype": torch.float32, "trust_remote_code": config.TRUST_REMOTE_CODE}
+elif total_vram_gb > config.VRAM_THRESHOLD_FOR_BFLOAT16:
     # VRAM كافية جداً - استخدام bfloat16 للدقة العالية
     loading_kwargs["torch_dtype"] = torch.bfloat16
     print(f"✅ استخدام bfloat16 (VRAM كافية)")
@@ -104,9 +105,9 @@ else:
     )
     print(f"✅ استخدام 4-bit quantization (توفير VRAM)")
 
-if not USE_OPENROUTER:
+if not config.USE_OPENROUTER:
     # 3. تحميل الموديل والـ Tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, fix_mistral_regex=True)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=config.TRUST_REMOTE_CODE, fix_mistral_regex=config.FIX_MISTRAL_REGEX)
     model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **loading_kwargs)
     
     # تنظيف الذاكرة بعد التحميل
@@ -115,13 +116,11 @@ if not USE_OPENROUTER:
         torch.cuda.synchronize()
         gc.collect()
 
-stop_tokens = ["<|im_end|>", "<|endoftext|>", "###"]
-
 BASE_DIR = Path(__file__).parent.resolve()
-STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR = BASE_DIR / config.STATIC_FOLDER
 INDEX_FILE = STATIC_DIR / "index.html"
-DATA_DIR = BASE_DIR / "data"
-HISTORY_FILE = DATA_DIR / "history.json"
+DATA_DIR = BASE_DIR / config.DATA_FOLDER
+HISTORY_FILE = DATA_DIR / config.HISTORY_FILE
 
 DATA_DIR.mkdir(exist_ok=True)
 if not HISTORY_FILE.exists():
@@ -347,7 +346,7 @@ async def upload_files(request: Request, files: list[UploadFile] = File(...)):
         saved.append({
             "name": f.filename,
             "size": len(raw),
-            "content": text[:12000]
+            "content": text[:config.MAX_FILE_CONTENT_LENGTH]
         })
     return {"files": saved}
 
@@ -375,26 +374,26 @@ async def chat_completions(request: Request):
     if cleaned and cleaned[0].get("role") != "system":
         cleaned.insert(0, {
             "role": "system", 
-            "content": "You are a helpful coding assistant. Always preserve proper code formatting, indentation, and whitespace in your responses."
+            "content": config.DEFAULT_SYSTEM_PROMPT
         })
 
     user_text = cleaned[-1].get("content", "") if cleaned else ""
     ip = _get_ip(request)
     
     # === OPENROUTER INTEGRATION ===
-    if USE_OPENROUTER:
+    if config.USE_OPENROUTER:
         try:
-            print(f"🔄 Using OpenRouter: {OPENROUTER_MODEL_ID}")
+            print(f"🔄 Using OpenRouter: {config.OPENROUTER_MODEL_ID}")
             headers = {
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Authorization": f"Bearer {config.OPENROUTER_API_KEY}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "http://localhost:8000"
             }
             payload = {
-                "model": OPENROUTER_MODEL_ID,
+                "model": config.OPENROUTER_MODEL_ID,
                 "messages": cleaned,
                 "stream": stream,
-                "temperature": 0.7
+                "temperature": config.TEMPERATURE
             }
             
             if stream:
@@ -407,7 +406,7 @@ async def chat_completions(request: Request):
                         yield f"data: {json.dumps({'conversation_id': conv_id})}\n\n"
                     
                     try:
-                        with requests.post(OPENROUTER_API_URL, json=payload, headers=headers, stream=True) as r:
+                        with requests.post(config.OPENROUTER_API_URL, json=payload, headers=headers, stream=True) as r:
                             if r.status_code == 401:
                                 error_msg = "🚨 **خطأ في المصادقة (401):** مفتاح OpenRouter API غير صحيح أو منتهي الصلاحية. يرجى التحقق من المتغير `OPENROUTER_API_KEY` في ملف `server.py`."
                                 print(f"❌ {error_msg}")
@@ -438,7 +437,7 @@ async def chat_completions(request: Request):
                 return StreamingResponse(iter_openrouter(), media_type="text/event-stream")
             
             else:
-                resp = requests.post(OPENROUTER_API_URL, json=payload, headers=headers)
+                resp = requests.post(config.OPENROUTER_API_URL, json=payload, headers=headers)
                 resp.raise_for_status()
                 data_resp = resp.json()
                 
@@ -457,16 +456,29 @@ async def chat_completions(request: Request):
     input_text = tokenizer.apply_chat_template(cleaned, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer([input_text], return_tensors="pt").to(model.device)
     
+    # إعداد معاملات التوليد
+    generation_params = {
+        "max_new_tokens": config.MAX_NEW_TOKENS,
+        "temperature": config.TEMPERATURE,
+        "do_sample": config.DO_SAMPLE,
+    }
+    if config.TOP_P is not None:
+        generation_params["top_p"] = config.TOP_P
+    if config.TOP_K is not None:
+        generation_params["top_k"] = config.TOP_K
+    if config.REPETITION_PENALTY != 1.0:
+        generation_params["repetition_penalty"] = config.REPETITION_PENALTY
+    
     # إذا كان streaming، استخدم streaming response
     if stream:
         streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-        generation_kwargs = dict(**inputs, streamer=streamer, max_new_tokens=1024, temperature=0.7, do_sample=True)
+        generation_kwargs = dict(**inputs, streamer=streamer, **generation_params)
         
         def generate_with_cleanup():
             try:
                 model.generate(**generation_kwargs)
             finally:
-                if device_count > 0:
+                if config.CLEANUP_MEMORY_AFTER_REQUEST and device_count > 0:
                     torch.cuda.empty_cache()
                 gc.collect()
         
@@ -486,7 +498,7 @@ async def chat_completions(request: Request):
                 if not text.strip():
                     continue
                 full_text += text
-                if any(s in text for s in stop_tokens):
+                if any(s in text for s in config.STOP_TOKENS):
                     break
                 yield f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n"
             
@@ -501,10 +513,8 @@ async def chat_completions(request: Request):
             with torch.no_grad():
                 outputs = model.generate(
                     **inputs,
-                    max_new_tokens=1024,
-                    temperature=0.7,
-                    do_sample=True,
-                    pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
+                    pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+                    **generation_params
                 )
             
             # فك التشفير مع الحفاظ على التنسيق والمسافات
@@ -515,7 +525,7 @@ async def chat_completions(request: Request):
             )
             
             # توقف عند علامات التوقف
-            for stop_token in stop_tokens:
+            for stop_token in config.STOP_TOKENS:
                 if stop_token in full_text:
                     full_text = full_text.split(stop_token)[0]
                     break
@@ -525,7 +535,7 @@ async def chat_completions(request: Request):
             append_exchange(ip, user_text, full_text, new_conv_id)
             
             # تنظيف الذاكرة
-            if device_count > 0:
+            if config.CLEANUP_MEMORY_AFTER_REQUEST and device_count > 0:
                 torch.cuda.empty_cache()
             gc.collect()
             
@@ -534,7 +544,7 @@ async def chat_completions(request: Request):
                 "id": f"chatcmpl-{uuid.uuid4()}",
                 "object": "chat.completion",
                 "created": int(datetime.now().timestamp()),
-                "model": "qwen2.5-coder-7b",
+                "model": config.MODEL_DISPLAY_NAME,
                 "choices": [{
                     "index": 0,
                     "message": {
@@ -551,13 +561,13 @@ async def chat_completions(request: Request):
             }
         
         except Exception as e:
-            if device_count > 0:
+            if config.CLEANUP_MEMORY_AFTER_REQUEST and device_count > 0:
                 torch.cuda.empty_cache()
             gc.collect()
             return JSONResponse({"error": str(e)}, status_code=500)
 
 
 if __name__ == "__main__":
-    print(f"✅ [ {PROJECT_NAME} ] جاهز!")
-    print(f"🌐 واجهة الويب متاحة على: http://localhost:8080")
-    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="error")
+    print(f"✅ [ {config.PROJECT_NAME} ] جاهز!")
+    print(f"🌐 واجهة الويب متاحة على: http://localhost:{config.SERVER_PORT}")
+    uvicorn.run(app, host=config.SERVER_HOST, port=config.SERVER_PORT, log_level=config.LOG_LEVEL)
