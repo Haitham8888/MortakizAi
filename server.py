@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from threading import Thread
 
-# ========== المكتبات الخارجية ==========
+# ========== المكت/libs الخارجية ==========
 import torch
 import uvicorn
 from fastapi import FastAPI, Request, UploadFile, File
@@ -34,18 +34,14 @@ def find_model_path(base_path):
     if not os.path.exists(base_path):
         return None
     
-    # تحقق إذا كان المسار يحتوي على config.json مباشرة
     if os.path.exists(os.path.join(base_path, "config.json")):
         return os.path.abspath(base_path)
     
-    # ابحث عن snapshots
     snapshots_dir = os.path.join(base_path, "snapshots")
     if os.path.exists(snapshots_dir):
-        # احصل على أحدث snapshot
         snapshot_folders = [f for f in os.listdir(snapshots_dir) 
                           if os.path.isdir(os.path.join(snapshots_dir, f))]
         if snapshot_folders:
-            # استخدم أول snapshot (أو يمكنك ترتيبهم حسب التاريخ)
             snapshot_path = os.path.join(snapshots_dir, snapshot_folders[0])
             if os.path.exists(os.path.join(snapshot_path, "config.json")):
                 print(f"📦 تم العثور على snapshot: {snapshot_folders[0]}")
@@ -64,8 +60,6 @@ if not MODEL_PATH and not config.USE_OPENROUTER:
 
 # 1. فحص العتاد
 device_count = torch.cuda.device_count()
-
-# تطبيق حد عدد الكروت من الإعدادات
 if config.MAX_GPU_COUNT is not None and device_count > config.MAX_GPU_COUNT:
     device_count = config.MAX_GPU_COUNT
     
@@ -88,15 +82,13 @@ else:
 
 # 2. استراتيجية التحميل
 loading_kwargs = {"device_map": "auto", "trust_remote_code": config.TRUST_REMOTE_CODE}
+
 if device_count == 0:
-    # CPU فقط
     loading_kwargs = {"device_map": {"": "cpu"}, "torch_dtype": torch.float32, "trust_remote_code": config.TRUST_REMOTE_CODE}
 elif total_vram_gb > config.VRAM_THRESHOLD_FOR_BFLOAT16:
-    # VRAM كافية جداً - استخدام bfloat16 للدقة العالية
     loading_kwargs["torch_dtype"] = torch.bfloat16
     print(f"✅ استخدام bfloat16 (VRAM كافية)")
 else:
-    # VRAM محدودة - استخدام 4-bit quantization (توفير أقصى)
     loading_kwargs["quantization_config"] = BitsAndBytesConfig(
         load_in_4bit=True, 
         bnb_4bit_compute_dtype=torch.float16, 
@@ -106,11 +98,9 @@ else:
     print(f"✅ استخدام 4-bit quantization (توفير VRAM)")
 
 if not config.USE_OPENROUTER:
-    # 3. تحميل الموديل والـ Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=config.TRUST_REMOTE_CODE, fix_mistral_regex=config.FIX_MISTRAL_REGEX)
     model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **loading_kwargs)
     
-    # تنظيف الذاكرة بعد التحميل
     if device_count > 0:
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
@@ -150,11 +140,9 @@ def get_history_for_ip(ip: str):
 
 
 def get_conversations_for_ip(ip: str) -> list:
-    """Get list of conversations for an IP"""
     data = _read_history()
     user_data = data.get(ip, {})
     if isinstance(user_data, list):
-        # Migrate old format to new
         return []
     convs = user_data.get("conversations", {})
     result = []
@@ -162,7 +150,6 @@ def get_conversations_for_ip(ip: str) -> list:
         messages = conv_data.get("messages", [])
         title = conv_data.get("title", "محادثة")
         if not title and messages:
-            # Use first user message as title
             for msg in messages:
                 if msg.get("role") == "user":
                     title = msg.get("content", "")[:50]
@@ -173,13 +160,11 @@ def get_conversations_for_ip(ip: str) -> list:
             "created_at": conv_data.get("created_at"),
             "message_count": len(messages)
         })
-    # Sort by created_at descending
     result.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return result
 
 
 def get_conversation(ip: str, conv_id: str) -> dict:
-    """Get a specific conversation"""
     data = _read_history()
     user_data = data.get(ip, {})
     if isinstance(user_data, list):
@@ -188,7 +173,6 @@ def get_conversation(ip: str, conv_id: str) -> dict:
 
 
 def delete_conversation(ip: str, conv_id: str) -> bool:
-    """Delete a conversation"""
     data = _read_history()
     user_data = data.get(ip, {})
     if isinstance(user_data, list):
@@ -203,7 +187,6 @@ def delete_conversation(ip: str, conv_id: str) -> bool:
 
 
 def delete_all_conversations(ip: str) -> bool:
-    """Delete all conversations for an IP"""
     data = _read_history()
     user_data = data.get(ip, {})
     if isinstance(user_data, list):
@@ -216,7 +199,6 @@ def delete_all_conversations(ip: str) -> bool:
 
 
 def create_conversation(ip: str, title: str = "محادثة") -> str:
-    """Create a new empty conversation and return its ID"""
     data = _read_history()
     user_data = data.get(ip, {})
     
@@ -239,18 +221,15 @@ def create_conversation(ip: str, title: str = "محادثة") -> str:
 
 
 def append_exchange(ip: str, user_text: str, assistant_text: str, conv_id: str = None) -> str:
-    """Append messages to a conversation, returns conversation ID"""
     data = _read_history()
     user_data = data.get(ip, {})
     
-    # Migrate old format
     if isinstance(user_data, list):
         user_data = {"conversations": {}}
     
     if "conversations" not in user_data:
         user_data["conversations"] = {}
     
-    # Create new conversation if needed
     if not conv_id:
         conv_id = str(uuid.uuid4())[:8]
     
@@ -367,7 +346,6 @@ async def upload_files(request: Request, files: list[UploadFile] = File(...)):
     for f in files:
         raw = await f.read()
         text = _extract_text(f, raw)
-        # لا يتم حفظ الملفات على القرص - فقط قراءة في الذاكرة
         saved.append({
             "name": f.filename,
             "size": len(raw),
@@ -379,23 +357,40 @@ async def upload_files(request: Request, files: list[UploadFile] = File(...)):
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     """Multi-purpose endpoint - يدعم Streaming و Non-streaming"""
+    print(f"📥 Received request to /v1/chat/completions")
+    
     try:
         data = await request.json()
-    except:
-        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        print(f"📝 Messages count: {len(data.get('messages', []))}")
+    except Exception as e:
+        print(f"❌ Invalid JSON in request body: {e}")
+        return JSONResponse(
+            {"error": {"message": "Invalid JSON", "type": "invalid_request_error", "param": None, "code": "bad_request"}},
+            status_code=400
+        )
     
     messages = data.get("messages", [])
-    stream = data.get("stream", False)  # تحقق إذا كان streaming مطلوب
+    stream = data.get("stream", False)
     user_agent = (request.headers.get("user-agent") or "").lower()
     accept = (request.headers.get("accept") or "").lower()
-    # بعض العملاء لا يتعاملون مع SSE بشكل صحيح
-    if "cline" in user_agent or "continue" in user_agent or "vscode" in user_agent:
+    
+    # Force disable streaming for Cline and similar tools
+    if ("cline" in user_agent or "continue" in user_agent or "vscode" in user_agent or 
+        "copilot" in user_agent or "cursor" in user_agent):
         stream = False
+        print("🔄 Disabled streaming for Cline/VSCode tool")
+    
     if stream and "text/event-stream" not in accept:
         stream = False
-    conv_id = data.get("conversation_id")
     
-    # تنظيف الرسائل
+    conv_id = data.get("conversation_id")
+    ip = _get_ip(request)
+    
+    # إذا لم يعط conversation_id، استخدم آخر محادثة لهذا ال_IP
+    if not conv_id:
+        conversations = get_conversations_for_ip(ip)
+        if conversations:
+            conv_id = conversations[0]["id"]  # استخدم آخر محادثة
     cleaned = []
     for m in messages:
         content = m.get("content", "")
@@ -403,7 +398,7 @@ async def chat_completions(request: Request):
             content = " ".join([str(i) for i in content])
         cleaned.append({"role": m.get("role"), "content": content})
     
-    # إضافة system prompt للحفاظ على formatting الكود
+    # Add system prompt
     if cleaned and cleaned[0].get("role") != "system":
         cleaned.insert(0, {
             "role": "system", 
@@ -433,7 +428,6 @@ async def chat_completions(request: Request):
                 def iter_openrouter():
                     nonlocal conv_id
                     full_resp = ""
-                    # Ensure conversation exists
                     if not conv_id:
                         conv_id = create_conversation(ip, user_text[:50] if user_text else "محادثة")
                         yield f"data: {json.dumps({'conversation_id': conv_id})}\n\n"
@@ -482,16 +476,21 @@ async def chat_completions(request: Request):
 
         except Exception as e:
             print(f"❌ OpenRouter Error: {e}")
-            return JSONResponse({"error": str(e)}, status_code=500)
+            return JSONResponse(
+                {"error": {"message": str(e), "type": "server_error", "param": None, "code": "internal_server_error"}},
+                status_code=500
+            )
     # ==============================
 
-    # تحضير الإدخال
+    # Prepare input
     input_text = tokenizer.apply_chat_template(cleaned, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer([input_text], return_tensors="pt").to(model.device)
+    input_tokens = inputs['input_ids'].shape[1]
+    print(f"📊 Input tokens: {input_tokens}")
     
-    # إعداد معاملات التوليد
+    # Generation parameters
     generation_params = {
-        "max_new_tokens": config.MAX_NEW_TOKENS,
+        "max_new_tokens": min(config.MAX_NEW_TOKENS, 512),
         "temperature": config.TEMPERATURE,
         "do_sample": config.DO_SAMPLE,
     }
@@ -502,7 +501,7 @@ async def chat_completions(request: Request):
     if config.REPETITION_PENALTY != 1.0:
         generation_params["repetition_penalty"] = config.REPETITION_PENALTY
     
-    # إذا كان streaming، استخدم streaming response
+    # Streaming response
     if stream:
         streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
         generation_kwargs = dict(**inputs, streamer=streamer, **generation_params)
@@ -540,9 +539,12 @@ async def chat_completions(request: Request):
 
         return StreamingResponse(generate(), media_type="text/event-stream")
     
-    # Non-streaming response (للـ Cline)
+    # Cline-compatible non-streaming response
     else:
         try:
+            print(f"🔄 Generating response (non-streaming) for Cline...")
+            
+            # Generate response
             with torch.no_grad():
                 outputs = model.generate(
                     **inputs,
@@ -550,31 +552,29 @@ async def chat_completions(request: Request):
                     **generation_params
                 )
             
-            # فك التشفير مع الحفاظ على التنسيق والمسافات
-            full_text = tokenizer.decode(
-                outputs[0][inputs['input_ids'].shape[1]:], 
-                skip_special_tokens=True,
-                clean_up_tokenization_spaces=False  # الحفاظ على المسافات الأصلية
-            )
+            # Decode the response
+            generated_ids = outputs[0][inputs['input_ids'].shape[1]:]
+            full_text = tokenizer.decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
             
-            # توقف عند علامات التوقف
+            # Clean up the response
+            full_text = full_text.strip()
             for stop_token in config.STOP_TOKENS:
                 if stop_token in full_text:
                     full_text = full_text.split(stop_token)[0]
                     break
             
-            # حفظ المحادثة
+            # Ensure proper conversation handling
             new_conv_id = conv_id or create_conversation(ip, user_text[:50] if user_text else "محادثة")
             append_exchange(ip, user_text, full_text, new_conv_id)
             
-            # تنظيف الذاكرة
-            if config.CLEANUP_MEMORY_AFTER_REQUEST and device_count > 0:
-                torch.cuda.empty_cache()
-            gc.collect()
+            # Calculate token usage
+            prompt_tokens = inputs['input_ids'].shape[1]
+            completion_tokens = len(tokenizer.encode(full_text))
+            total_tokens = prompt_tokens + completion_tokens
             
-            # إرجاع الرد بصيغة OpenAI القياسية
-            return {
-                "id": f"chatcmpl-{uuid.uuid4()}",
+            # Create Cline-compatible response
+            response = {
+                "id": f"chatcmpl-{uuid.uuid4().hex[:16]}",
                 "object": "chat.completion",
                 "created": int(datetime.now().timestamp()),
                 "model": config.MODEL_DISPLAY_NAME,
@@ -584,20 +584,40 @@ async def chat_completions(request: Request):
                         "role": "assistant",
                         "content": full_text
                     },
+                    "logprobs": None,
                     "finish_reason": "stop"
                 }],
                 "usage": {
-                    "prompt_tokens": inputs['input_ids'].shape[1],
-                    "completion_tokens": outputs.shape[1] - inputs['input_ids'].shape[1],
-                    "total_tokens": outputs.shape[1]
-                }
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens
+                },
+                "system_fingerprint": "fp_1234567890"
             }
+            
+            print(f"✅ Cline response ready: {len(full_text)} chars, {completion_tokens} tokens")
+            return response
         
         except Exception as e:
+            print(f"❌ Error during Cline response generation: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
             if config.CLEANUP_MEMORY_AFTER_REQUEST and device_count > 0:
                 torch.cuda.empty_cache()
             gc.collect()
-            return JSONResponse({"error": str(e)}, status_code=500)
+            
+            return JSONResponse(
+                {
+                    "error": {
+                        "message": f"Internal server error: {str(e)}",
+                        "type": "server_error",
+                        "param": None,
+                        "code": "internal_server_error"
+                    }
+                },
+                status_code=500
+            )
 
 
 if __name__ == "__main__":
