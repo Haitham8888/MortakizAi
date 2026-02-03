@@ -320,6 +320,20 @@ async def history(request: Request):
     return {"messages": []}
 
 
+@app.get("/v1/models")
+async def list_models():
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": config.MODEL_DISPLAY_NAME,
+                "object": "model",
+                "owned_by": "local"
+            }
+        ]
+    }
+
+
 @app.get("/v1/conversations")
 async def list_conversations(request: Request):
     ip = _get_ip(request)
@@ -372,6 +386,13 @@ async def chat_completions(request: Request):
     
     messages = data.get("messages", [])
     stream = data.get("stream", False)  # تحقق إذا كان streaming مطلوب
+    user_agent = (request.headers.get("user-agent") or "").lower()
+    accept = (request.headers.get("accept") or "").lower()
+    # بعض العملاء لا يتعاملون مع SSE بشكل صحيح
+    if "cline" in user_agent or "continue" in user_agent or "vscode" in user_agent:
+        stream = False
+    if stream and "text/event-stream" not in accept:
+        stream = False
     conv_id = data.get("conversation_id")
     
     # تنظيف الرسائل
