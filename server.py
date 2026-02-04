@@ -15,7 +15,7 @@ from threading import Thread
 import torch
 import uvicorn
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
+from fastapi.responses import StreamingResponse, FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, BitsAndBytesConfig
 
@@ -610,7 +610,7 @@ async def chat_completions(request: Request):
             
             safe_text = full_text if full_text.strip() else " "
             
-            # Create Cline-compatible response (chat.completions + responses-like)
+            # Create Cline-compatible response - simplified OpenAI format
             response = {
                 "id": f"chatcmpl-{uuid.uuid4().hex[:16]}",
                 "object": "chat.completion",
@@ -620,31 +620,27 @@ async def chat_completions(request: Request):
                     "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": [{"type": "text", "text": safe_text}],
-                        "text": safe_text
+                        "content": safe_text
                     },
-                    "text": safe_text,
-                    "logprobs": None,
                     "finish_reason": "stop"
                 }],
                 "usage": {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
                     "total_tokens": total_tokens
-                },
-                "system_fingerprint": "fp_1234567890",
-                "output": [
-                    {
-                        "type": "message",
-                        "role": "assistant",
-                        "content": [{"type": "text", "text": safe_text}]
-                    }
-                ],
-                "output_text": safe_text
+                }
             }
             
+            # Debug: Log the exact JSON being returned
+            json_str = json.dumps(response, ensure_ascii=False)
             print(f"✅ Cline response ready: {len(full_text)} chars, {completion_tokens} tokens")
-            return response
+            print(f"📤 JSON Response: {json_str[:300]}...")  # Log first 300 chars
+            
+            # Return with proper content-type header
+            return JSONResponse(
+                content=response,
+                headers={"Content-Type": "application/json"}
+            )
         
         except Exception as e:
             print(f"❌ Error during Cline response generation: {str(e)}")

@@ -32,5 +32,31 @@
         ]
       }
     }
+  },
+  "127.0.0.1:web": {
+    "conversations": {
+      "8433b697": {
+        "created_at": "2026-02-04T12:37:41.114400",
+        "title": "مرحبا",
+        "messages": [
+          {
+            "role": "user",
+            "content": "مرحبا"
+          },
+          {
+            "role": "assistant",
+            "content": "مرحبًا! كيف يمكنني مساعدتك اليوم؟"
+          },
+          {
+            "role": "user",
+            "content": "اكتب لي كود لبناء خريطة احصائيات ب استخدام البايثون وخرائط esri"
+          },
+          {
+            "role": "assistant",
+            "content": "بالتأكيد! يمكنك استخدام библиotheca `arcgis` من Esri لبناء خرائط إحصائية في Python. فيما يلي مثال لكيفية القيام بذلك:\n\n1. أولاً، تأكد من تثبيت المكتبات اللازمة:\n```bash\npip install arcgis pandas matplotlib\n```\n\n2. ثم، يمكنك استخدام الكود التالي لإنشاء خرائط إحصائية:\n\n```python\nimport arcgis\nfrom arcgis.gis import GIS\nfrom arcgis.features import FeatureLayerCollection\nfrom arcgis.mapping import WebMap, WebScene\nfrom arcgis.widgets import MapView\n\n# تسجيل الدخول إلى خدمة ArcGIS Online\ngis = GIS(\"https://www.arcgis.com\", \"your_username\", \"your_password\")\n\n# قم بإنشاء خرائط جديدة\nweb_map = WebMap()\n\n# إضافة طبقة بيانات (Feature Layer)\nfeature_layer_collection = FeatureLayerCollection.fromitem(gis.content.get(\"content_id\"))\nweb_map.add_layer(feature_layer_collection)\n\n# إعداد لوغوت للخرائط\nweb_map.basemap = \"streets\"\n\n# إظهار الخرائط باستخدام widget MapView\nmap_view = MapView(web_map=web_map)\nmap_view.zoom = 4\nmap_view.center = [30, -98]  # مركز الخرائط على الولايات المتحدة الأمريكية\n\n# عرض الخرائط\nmap_view\n```\n\n"
+          }
+        ]
+      }
+    }
   }
 }

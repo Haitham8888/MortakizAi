@@ -1,4 +1,4 @@
-# 🛡️ مَرْتَكَز - MortakizAi
+# 🛡️ مُرْتَكَز - MortakizAi
 
 **The Power of Local AI, Centered in Your Machine.**
 
@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GPU Powered](https://img.shields.io/badge/GPU-NVIDIA%20H100%20%7C%20A4000-green.svg)](https://www.nvidia.com/)
 
-**مَرْتَكَز (MortakizAi)** هو محرك ذكاء اصطناعي محلي فائق السرعة، صُمم ليكون "نقطة الارتكاز" المستقرة لعملية التطوير البرمجي داخل بيئات VSCode عبر إضافات مثل **Cline** و **Continue**. يوفر المشروع توافقاً كاملاً مع OpenAI API مع ميزة التكيف الذكي مع العتاد المتوفر.
+**مُرْتَكَز (MortakizAi)** هو محرك ذكاء اصطناعي محلي فائق السرعة، صُمم ليكون "نقطة الارتكاز" المستقرة لعملية التطوير البرمجي داخل بيئات VSCode عبر إضافات مثل **Cline** و **Continue**. يوفر المشروع توافقاً كاملاً مع OpenAI API مع ميزة التكيف الذكي مع العتاد المتوفر.
 
 ---
 
