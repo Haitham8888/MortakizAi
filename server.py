@@ -22,6 +22,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStream
 # ========== ملف الإعدادات ==========
 import config
 
+# وضع التشغيل (web أو cline)
+RUN_MODE = os.environ.get("RUN_MODE", "web").lower()
+FORCE_CLIENT = os.environ.get("FORCE_CLIENT", "").lower()
+MAX_INPUT_TOKENS_CLINE = int(os.environ.get("MAX_INPUT_TOKENS_CLINE", "4096"))
+
 # تحسين تخصيص الذاكرة في CUDA
 if config.CUDA_MEMORY_OPTIMIZATION:
     os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
@@ -110,14 +115,18 @@ BASE_DIR = Path(__file__).parent.resolve()
 STATIC_DIR = BASE_DIR / config.STATIC_FOLDER
 INDEX_FILE = STATIC_DIR / "index.html"
 DATA_DIR = BASE_DIR / config.DATA_FOLDER
-HISTORY_FILE = DATA_DIR / config.HISTORY_FILE
+history_filename = config.HISTORY_FILE
+if RUN_MODE == "cline":
+    history_filename = "history_cline.json"
+HISTORY_FILE = DATA_DIR / history_filename
 
 DATA_DIR.mkdir(exist_ok=True)
 if not HISTORY_FILE.exists():
     HISTORY_FILE.write_text(json.dumps({}, ensure_ascii=False))
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+if RUN_MODE != "cline":
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 def _read_history() -> dict:
@@ -128,10 +137,25 @@ def _read_history() -> dict:
 
 
 def _write_history(payload: dict) -> None:
+    if RUN_MODE == "cline":
+        return
     HISTORY_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
 
-def _get_ip(request: Request) -> str:
-    return (request.client.host if request.client else "unknown") or "unknown"
+def _get_client_key(request: Request) -> str:
+    ip = (request.client.host if request.client else "unknown") or "unknown"
+    if FORCE_CLIENT:
+        client = FORCE_CLIENT
+        return f"{ip}:{client}"
+    if RUN_MODE == "cline":
+        return f"{ip}:cline"
+    ua = (request.headers.get("user-agent") or "").lower()
+    if "cline" in ua:
+        client = "cline"
+    elif "continue" in ua or "vscode" in ua or "copilot" in ua or "cursor" in ua:
+        client = "vscode"
+    else:
+        client = "web"
+    return f"{ip}:{client}"
 
 
 def get_history_for_ip(ip: str):
@@ -295,7 +319,7 @@ async def get_ui():
 
 @app.get("/v1/history")
 async def history(request: Request):
-    ip = _get_ip(request)
+    ip = _get_client_key(request)
     return {"messages": []}
 
 
@@ -315,27 +339,27 @@ async def list_models():
 
 @app.get("/v1/conversations")
 async def list_conversations(request: Request):
-    ip = _get_ip(request)
+    ip = _get_client_key(request)
     return {"conversations": get_conversations_for_ip(ip)}
 
 
 @app.get("/v1/conversations/{conv_id}")
 async def get_conv(conv_id: str, request: Request):
-    ip = _get_ip(request)
+    ip = _get_client_key(request)
     conv = get_conversation(ip, conv_id)
     return {"messages": conv.get("messages", []), "title": conv.get("title", "")}
 
 
 @app.delete("/v1/conversations/{conv_id}")
 async def delete_conv(conv_id: str, request: Request):
-    ip = _get_ip(request)
+    ip = _get_client_key(request)
     success = delete_conversation(ip, conv_id)
     return {"success": success}
 
 
 @app.delete("/v1/conversations")
 async def delete_all_convs(request: Request):
-    ip = _get_ip(request)
+    ip = _get_client_key(request)
     success = delete_all_conversations(ip)
     return {"success": success}
 
@@ -384,7 +408,7 @@ async def chat_completions(request: Request):
         stream = False
     
     conv_id = data.get("conversation_id")
-    ip = _get_ip(request)
+    ip = _get_client_key(request)
     
     # إذا لم يعط conversation_id، استخدم آخر محادثة لهذا ال_IP
     if not conv_id:
@@ -406,7 +430,7 @@ async def chat_completions(request: Request):
         })
 
     user_text = cleaned[-1].get("content", "") if cleaned else ""
-    ip = _get_ip(request)
+    ip = _get_client_key(request)
     
     # === OPENROUTER INTEGRATION ===
     if config.USE_OPENROUTER:
@@ -484,13 +508,25 @@ async def chat_completions(request: Request):
 
     # Prepare input
     input_text = tokenizer.apply_chat_template(cleaned, tokenize=False, add_generation_prompt=True)
-    inputs = tokenizer([input_text], return_tensors="pt").to(model.device)
+    if RUN_MODE == "cline":
+        tokenizer.truncation_side = "left"
+        inputs = tokenizer(
+            [input_text],
+            return_tensors="pt",
+            truncation=True,
+            max_length=MAX_INPUT_TOKENS_CLINE
+        ).to(model.device)
+    else:
+        inputs = tokenizer([input_text], return_tensors="pt").to(model.device)
     input_tokens = inputs['input_ids'].shape[1]
     print(f"📊 Input tokens: {input_tokens}")
     
     # Generation parameters
+    max_new_tokens = min(config.MAX_NEW_TOKENS, 512)
+    if RUN_MODE == "cline":
+        max_new_tokens = min(max_new_tokens, 256)
     generation_params = {
-        "max_new_tokens": min(config.MAX_NEW_TOKENS, 512),
+        "max_new_tokens": max_new_tokens,
         "temperature": config.TEMPERATURE,
         "do_sample": config.DO_SAMPLE,
     }
@@ -572,7 +608,9 @@ async def chat_completions(request: Request):
             completion_tokens = len(tokenizer.encode(full_text))
             total_tokens = prompt_tokens + completion_tokens
             
-            # Create Cline-compatible response
+            safe_text = full_text if full_text.strip() else " "
+            
+            # Create Cline-compatible response (chat.completions + responses-like)
             response = {
                 "id": f"chatcmpl-{uuid.uuid4().hex[:16]}",
                 "object": "chat.completion",
@@ -582,8 +620,10 @@ async def chat_completions(request: Request):
                     "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": full_text
+                        "content": [{"type": "text", "text": safe_text}],
+                        "text": safe_text
                     },
+                    "text": safe_text,
                     "logprobs": None,
                     "finish_reason": "stop"
                 }],
@@ -592,7 +632,15 @@ async def chat_completions(request: Request):
                     "completion_tokens": completion_tokens,
                     "total_tokens": total_tokens
                 },
-                "system_fingerprint": "fp_1234567890"
+                "system_fingerprint": "fp_1234567890",
+                "output": [
+                    {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [{"type": "text", "text": safe_text}]
+                    }
+                ],
+                "output_text": safe_text
             }
             
             print(f"✅ Cline response ready: {len(full_text)} chars, {completion_tokens} tokens")
