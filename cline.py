@@ -12,12 +12,16 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, BitsAndBytesConfig
 
+# اسم الموديل الافتراضي
 MODEL_NAME = "models--Qwen--Qwen2.5-Coder-7B-Instruct"
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """سيرفر متعدد الخيوط (Multi-threaded) لضمان عدم تعليق واجهة VS Code"""
     daemon_threads = True
+    allow_reuse_address = True
 
 def resolve_model_path(model_path: str, model_name: str | None) -> str:
+    """تحديد مسار الموديل في جهازك الأوفلاين والبحث في snapshots"""
     base = Path(model_path)
     if base.is_dir() and base.name == "models_cache":
         if model_name:
@@ -42,46 +46,56 @@ def main():
     args = parser.parse_args()
 
     model_path = resolve_model_path(args.model_path, args.model_name)
-    print(f"--- 🚀 Loading 4-Bit Quantized Model (VRAM Saver): {model_path} ---")
+    print(f"--- 🚀 Loading 4-Bit Quantized Model from: {model_path} ---")
 
+    # 1. تحميل التوكنايزر
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, 
         trust_remote_code=True, 
         local_files_only=True, 
         fix_mistral_regex=True
     )
-    
-    # إعدادات الضغط لتقليل الحجم من 15GB إلى 6GB
+    # تفعيل سياق طويل جداً للاستفادة من ذاكرة H100
+    tokenizer.model_max_length = 32768 
+
+    # 2. إعدادات الضغط (4-bit) لتوفير الذاكرة وزيادة السرعة
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.bfloat16, # الحفاظ على السرعة والدقة
+        bnb_4bit_compute_dtype=torch.bfloat16,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4"
     )
 
-    # تحميل الموديل مضغوطاً
+    # 3. تحميل الموديل
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=bnb_config,
         device_map="auto",
         trust_remote_code=True,
         local_files_only=True,
+        low_cpu_mem_usage=True
     )
-    # لا حاجة لـ model.eval() مع quantization لأنه يتم تلقائياً
 
     def _process_raw_messages(messages):
-        """تمرير الرسائل كما هي (الجسر المباشر)"""
+        """
+        تمرير الرسائل كما هي (Passthrough) ليعتمد الموديل على تعليمات Cline،
+        مع حذف التلقين المسبق (Pre-fill) فقط لمنع الهلوسة.
+        """
         processed_messages = []
         for msg in messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
+            
+            # معالجة المحتوى إذا كان قائمة (تصحيح تنسيق Cline)
             if isinstance(content, list):
                 content = "\n".join([str(item.get("text", "")) if isinstance(item, dict) else str(item) for item in content])
+            
             processed_messages.append({"role": role, "content": str(content)})
 
-        # حذف التلقين المسبق فقط لتجنب الهلوسة
+        # حذف التلقين المسبق الإجباري من Cline (آخر رسالة Assistant)
         if processed_messages and processed_messages[-1]['role'] == 'assistant':
              last_content = processed_messages[-1]['content'].strip()
+             # نتأكد أنها رسالة تلقين وليست جزءاً من محادثة سابقة
              if not last_content or "<task" in last_content or "Here is" in last_content:
                 print("ℹ️  Dropped Cline's forced pre-fill.")
                 processed_messages.pop()
@@ -90,6 +104,7 @@ def main():
 
     class Handler(BaseHTTPRequestHandler):
         def _send_sse(self, payload):
+            """إرسال البيانات مع حماية ضد انقطاع الاتصال"""
             try:
                 data = f"data: {json.dumps(payload)}\n\n".encode("utf-8")
                 self.wfile.write(data)
@@ -104,7 +119,12 @@ def main():
                     length = int(self.headers.get("Content-Length", 0))
                     body = json.loads(self.rfile.read(length).decode("utf-8"))
                     
-                    print(f"📥 Request Received...")
+                    # استقبال الإعدادات الديناميكية من واجهة Cline
+                    # إذا لم يرسلها Cline، نستخدم القيم الافتراضية
+                    req_temp = float(body.get("temperature", 0.1))
+                    req_max_tokens = int(body.get("max_tokens", 2048))
+
+                    print(f"📥 Request: Temp={req_temp}, MaxTokens={req_max_tokens}...")
                     
                     final_messages = _process_raw_messages(body.get("messages", []))
                     
@@ -117,11 +137,12 @@ def main():
                     self.end_headers()
 
                     streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+                    
                     gen_kwargs = dict(
                         inputs, 
                         streamer=streamer, 
-                        max_new_tokens=2048, 
-                        temperature=0.1, 
+                        max_new_tokens=req_max_tokens, # استخدام قيمة Cline
+                        temperature=req_temp,          # استخدام قيمة Cline
                         do_sample=True 
                     )
                     
@@ -142,13 +163,12 @@ def main():
                     except: pass
                     print(f"✅ Finished.")
                     
-                    # تنظيف الذاكرة بعد كل طلب لتجنب تراكم الـ Cache
+                    # تنظيف الذاكرة بعد كل طلب (يمكنك تعليق هذا السطر لسرعة أعلى)
                     torch.cuda.empty_cache()
                     gc.collect()
 
                 except Exception as e:
                     print(f"⚠️ Error: {e}")
-                    # في حالة الخطأ نحاول إرسال رد فارغ لإغلاق الاتصال بأمان
                     try: self.send_error(500)
                     except: pass
 
@@ -159,11 +179,13 @@ def main():
                 self.end_headers()
                 self.wfile.write(json.dumps({"data": [{"id": args.model_name}]}).encode())
 
-    print(f"--- ✅ 4-Bit Server Running at http://{args.host}:{args.port}/v1 ---")
+    print(f"--- ✅ Server Running at http://{args.host}:{args.port}/v1 ---")
     try:
         httpd = ThreadedHTTPServer((args.host, args.port), Handler)
         httpd.serve_forever()
     except KeyboardInterrupt:
+        print("\nShutting down server...")
+        httpd.server_close()
         sys.exit(0)
 
 if __name__ == "__main__":
