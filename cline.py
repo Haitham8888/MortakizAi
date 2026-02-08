@@ -3,13 +3,14 @@ import json
 import time
 import uuid
 import sys
+import gc
 from threading import Thread
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 from pathlib import Path
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, BitsAndBytesConfig
 
 MODEL_NAME = "models--Qwen--Qwen2.5-Coder-7B-Instruct"
 
@@ -41,7 +42,7 @@ def main():
     args = parser.parse_args()
 
     model_path = resolve_model_path(args.model_path, args.model_name)
-    print(f"--- 🚀 Loading Raw Model from: {model_path} ---")
+    print(f"--- 🚀 Loading 4-Bit Quantized Model (VRAM Saver): {model_path} ---")
 
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, 
@@ -50,43 +51,39 @@ def main():
         fix_mistral_regex=True
     )
     
-    # تحميل الموديل (استخدام bfloat16 لسرعة قصوى على H100/4060)
+    # إعدادات الضغط لتقليل الحجم من 15GB إلى 6GB
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.bfloat16, # الحفاظ على السرعة والدقة
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4"
+    )
+
+    # تحميل الموديل مضغوطاً
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+        quantization_config=bnb_config,
         device_map="auto",
         trust_remote_code=True,
         local_files_only=True,
     )
-    model.eval()
+    # لا حاجة لـ model.eval() مع quantization لأنه يتم تلقائياً
 
     def _process_raw_messages(messages):
-        """
-        هذه الدالة تمرر الرسائل كما هي تماماً من Cline دون إضافة أو حذف أي System Prompt.
-        فقط تقوم بإصلاح تنسيق البيانات (تحويل القوائم لنصوص) ليفهمها الموديل.
-        """
+        """تمرير الرسائل كما هي (الجسر المباشر)"""
         processed_messages = []
-        
         for msg in messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
-            
-            # 1. إصلاح التنسيق فقط (لأن Cline يرسل المحتوى أحياناً كقائمة)
             if isinstance(content, list):
-                # دمج النصوص إذا كانت مقسمة
                 content = "\n".join([str(item.get("text", "")) if isinstance(item, dict) else str(item) for item in content])
-            
-            # 2. تمرير الرسالة كما هي (System, User, Assistant)
             processed_messages.append({"role": role, "content": str(content)})
 
-        # [هام] إزالة "التلقين المسبق" (Pre-fill) فقط إذا كان موجوداً في النهاية
-        # السبب: Cline يضيف رسالة فارغة للمساعد في النهاية تجبر الموديل على الهلوسة بـ <task_progress>
-        # حذفها يجعلك أنت المتحكم الوحيد في الرد.
+        # حذف التلقين المسبق فقط لتجنب الهلوسة
         if processed_messages and processed_messages[-1]['role'] == 'assistant':
-             # نتحقق إذا كانت الرسالة قصيرة جداً أو تبدو كبداية تلقين
              last_content = processed_messages[-1]['content'].strip()
              if not last_content or "<task" in last_content or "Here is" in last_content:
-                print("ℹ️  Dropped Cline's forced pre-fill to prevent hallucinations.")
+                print("ℹ️  Dropped Cline's forced pre-fill.")
                 processed_messages.pop()
 
         return processed_messages
@@ -107,12 +104,10 @@ def main():
                     length = int(self.headers.get("Content-Length", 0))
                     body = json.loads(self.rfile.read(length).decode("utf-8"))
                     
-                    print(f"📥 Received Request (Passing Raw Prompt)...")
+                    print(f"📥 Request Received...")
                     
-                    # نستخدم الدالة الخام
                     final_messages = _process_raw_messages(body.get("messages", []))
                     
-                    # إنشاء البرومبت النهائي
                     prompt = tokenizer.apply_chat_template(final_messages, tokenize=False, add_generation_prompt=True)
                     inputs = tokenizer([prompt], return_tensors="pt").to(model.device)
 
@@ -146,9 +141,16 @@ def main():
                         self.wfile.flush()
                     except: pass
                     print(f"✅ Finished.")
-                
+                    
+                    # تنظيف الذاكرة بعد كل طلب لتجنب تراكم الـ Cache
+                    torch.cuda.empty_cache()
+                    gc.collect()
+
                 except Exception as e:
                     print(f"⚠️ Error: {e}")
+                    # في حالة الخطأ نحاول إرسال رد فارغ لإغلاق الاتصال بأمان
+                    try: self.send_error(500)
+                    except: pass
 
         def do_GET(self):
             if self.path == "/v1/models":
@@ -157,7 +159,7 @@ def main():
                 self.end_headers()
                 self.wfile.write(json.dumps({"data": [{"id": args.model_name}]}).encode())
 
-    print(f"--- ✅ Raw Server Running at http://{args.host}:{args.port}/v1 ---")
+    print(f"--- ✅ 4-Bit Server Running at http://{args.host}:{args.port}/v1 ---")
     try:
         httpd = ThreadedHTTPServer((args.host, args.port), Handler)
         httpd.serve_forever()
