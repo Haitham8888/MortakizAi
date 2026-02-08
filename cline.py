@@ -2,6 +2,7 @@ import argparse
 import json
 import time
 import uuid
+import sys
 from threading import Thread
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
@@ -10,11 +11,9 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 
-# الموديل الموصى به للبرمجة الاحترافية
 MODEL_NAME = "models--Qwen--Qwen2.5-Coder-7B-Instruct"
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    """تسمح بمعالجة طلبات متعددة لضمان استجابة واجهة VS Code السريعة"""
     daemon_threads = True
 
 def resolve_model_path(model_path: str, model_name: str | None) -> str:
@@ -37,15 +36,21 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", default="models_cache")
     parser.add_argument("--model-name", default=MODEL_NAME)
+    parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8001)
     args = parser.parse_args()
 
     model_path = resolve_model_path(args.model_path, args.model_name)
-    print(f"--- 🚀 Loading Professional Model: {model_path} ---")
+    print(f"--- 🚀 Loading Raw Model from: {model_path} ---")
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True, local_files_only=True, fix_mistral_regex=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, 
+        trust_remote_code=True, 
+        local_files_only=True, 
+        fix_mistral_regex=True
+    )
     
-    # تحميل الموديل بذكاء (توزيع تلقائي واستخدام bfloat16 لسرعة قصوى)
+    # تحميل الموديل (استخدام bfloat16 لسرعة قصوى على H100/4060)
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
@@ -55,25 +60,36 @@ def main():
     )
     model.eval()
 
-    def _normalize_messages(messages):
-        """تصفية تعليمات Cline الضخمة لتركيز ذكاء الموديل على الرد البرمجي فقط"""
-        normalized = [
-            {
-                "role": "system",
-                "content": "You are a professional software engineer. Provide clear, concise answers. If a tool is needed, use the requested XML format exactly. Stop immediately after answering."
-            }
-        ]
-        # نأخذ السياق الضروري فقط لتجنب تشتت الموديل
-        for msg in messages or []:
-            role = msg.get("role", "user")
-            if role == "system": continue 
-            
+    def _process_raw_messages(messages):
+        """
+        هذه الدالة تمرر الرسائل كما هي تماماً من Cline دون إضافة أو حذف أي System Prompt.
+        فقط تقوم بإصلاح تنسيق البيانات (تحويل القوائم لنصوص) ليفهمها الموديل.
+        """
+        processed_messages = []
+        
+        for msg in messages:
+            role = msg.get("role", "")
             content = msg.get("content", "")
+            
+            # 1. إصلاح التنسيق فقط (لأن Cline يرسل المحتوى أحياناً كقائمة)
             if isinstance(content, list):
+                # دمج النصوص إذا كانت مقسمة
                 content = "\n".join([str(item.get("text", "")) if isinstance(item, dict) else str(item) for item in content])
             
-            normalized.append({"role": role, "content": str(content)})
-        return normalized
+            # 2. تمرير الرسالة كما هي (System, User, Assistant)
+            processed_messages.append({"role": role, "content": str(content)})
+
+        # [هام] إزالة "التلقين المسبق" (Pre-fill) فقط إذا كان موجوداً في النهاية
+        # السبب: Cline يضيف رسالة فارغة للمساعد في النهاية تجبر الموديل على الهلوسة بـ <task_progress>
+        # حذفها يجعلك أنت المتحكم الوحيد في الرد.
+        if processed_messages and processed_messages[-1]['role'] == 'assistant':
+             # نتحقق إذا كانت الرسالة قصيرة جداً أو تبدو كبداية تلقين
+             last_content = processed_messages[-1]['content'].strip()
+             if not last_content or "<task" in last_content or "Here is" in last_content:
+                print("ℹ️  Dropped Cline's forced pre-fill to prevent hallucinations.")
+                processed_messages.pop()
+
+        return processed_messages
 
     class Handler(BaseHTTPRequestHandler):
         def _send_sse(self, payload):
@@ -82,56 +98,57 @@ def main():
                 self.wfile.write(data)
                 self.wfile.flush()
                 return True
-            except:
+            except (BrokenPipeError, ConnectionResetError):
                 return False
 
         def do_POST(self):
             if self.path == "/v1/chat/completions":
-                length = int(self.headers.get("Content-Length", 0))
-                body = json.loads(self.rfile.read(length).decode("utf-8"))
-                
-                print(f"📥 Generating code using Qwen 7B...")
-                
-                prompt = tokenizer.apply_chat_template(_normalize_messages(body.get("messages", [])), tokenize=False, add_generation_prompt=True)
-                inputs = tokenizer([prompt], return_tensors="pt").to(model.device)
-
-                self.send_response(200)
-                self.send_header("Content-Type", "text/event-stream")
-                self.send_header("Cache-Control", "no-cache")
-                self.end_headers()
-
-                streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-                # إضافة علامات التوقف (Stop Sequences) لمنع التكرار
-                gen_kwargs = dict(
-                    inputs, 
-                    streamer=streamer, 
-                    max_new_tokens=2048, 
-                    temperature=0.1, 
-                    top_p=0.9,
-                    do_sample=True,
-                    eos_token_id=tokenizer.eos_token_id,
-                    pad_token_id=tokenizer.eos_token_id
-                )
-                
-                thread = Thread(target=model.generate, kwargs=gen_kwargs)
-                thread.start()
-
-                chat_id = f"chatcmpl-{uuid.uuid4().hex}"
-                for new_text in streamer:
-                    # التحقق من أن الموديل لم يبدأ في تكرار تعليمات النظام
-                    if "system" in new_text.lower() or "user <task>" in new_text.lower():
-                        break
-                    if not self._send_sse({
-                        "id": chat_id,
-                        "choices": [{"delta": {"content": new_text}, "index": 0, "finish_reason": None}]
-                    }):
-                        break
-                
                 try:
-                    self.wfile.write(b"data: [DONE]\n\n")
-                    self.wfile.flush()
-                except: pass
-                print(f"✅ Finished Task.")
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = json.loads(self.rfile.read(length).decode("utf-8"))
+                    
+                    print(f"📥 Received Request (Passing Raw Prompt)...")
+                    
+                    # نستخدم الدالة الخام
+                    final_messages = _process_raw_messages(body.get("messages", []))
+                    
+                    # إنشاء البرومبت النهائي
+                    prompt = tokenizer.apply_chat_template(final_messages, tokenize=False, add_generation_prompt=True)
+                    inputs = tokenizer([prompt], return_tensors="pt").to(model.device)
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.send_header("Cache-Control", "no-cache")
+                    self.end_headers()
+
+                    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+                    gen_kwargs = dict(
+                        inputs, 
+                        streamer=streamer, 
+                        max_new_tokens=2048, 
+                        temperature=0.1, 
+                        do_sample=True 
+                    )
+                    
+                    thread = Thread(target=model.generate, kwargs=gen_kwargs)
+                    thread.start()
+
+                    chat_id = f"chatcmpl-{uuid.uuid4().hex}"
+                    for new_text in streamer:
+                        if not self._send_sse({
+                            "id": chat_id,
+                            "choices": [{"delta": {"content": new_text}, "index": 0, "finish_reason": None}]
+                        }):
+                            break 
+                    
+                    try:
+                        self.wfile.write(b"data: [DONE]\n\n")
+                        self.wfile.flush()
+                    except: pass
+                    print(f"✅ Finished.")
+                
+                except Exception as e:
+                    print(f"⚠️ Error: {e}")
 
         def do_GET(self):
             if self.path == "/v1/models":
@@ -140,8 +157,12 @@ def main():
                 self.end_headers()
                 self.wfile.write(json.dumps({"data": [{"id": args.model_name}]}).encode())
 
-    print(f"--- ✅ Professional Server running at http://0.0.0.0:{args.port}/v1 ---")
-    HTTPServer(("0.0.0.0", args.port), Handler).serve_forever()
+    print(f"--- ✅ Raw Server Running at http://{args.host}:{args.port}/v1 ---")
+    try:
+        httpd = ThreadedHTTPServer((args.host, args.port), Handler)
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
