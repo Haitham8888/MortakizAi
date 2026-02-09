@@ -7,28 +7,34 @@ from threading import Thread
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 from pathlib import Path
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 
+# --- 💎 Qwen3 MoE (الوحش الجديد) ---
+# تأكد أنك حملت الموديل بهذا الاسم في مجلد models_cache
 MODEL_NAME = "models--Qwen--Qwen2.5-Coder-7B-Instruct"
 
-# --- إعدادات A4000 المحسنة ---
-# تم تقليل الرقم من 8000 إلى 4096 لمنع Timeout
-MAX_INPUT_TOKENS = 4096    
-MAX_NEW_TOKENS_CAP = 1024 
-# ---------------------
+# --- ⚡ إعدادات السرعة والذاكرة ---
+MAX_INPUT_TOKENS = 32000   # MoE يدعم سياق ضخم
+MAX_NEW_TOKENS_CAP = 4096  # نسمح له بالكتابة بحرية
+# ----------------------------------------
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
 def resolve_model_path(model_path: str, model_name: str | None) -> str:
+    """البحث عن الموديل محلياً"""
+    # إذا كان الاسم مساراً مباشراً لموديل HF
+    if "/" in model_name: return model_name
+    
+    # البحث في الكاش المحلي
     base = Path(model_path)
     if base.is_dir() and base.name == "models_cache":
         if model_name:
             candidate = base / model_name
             if candidate.is_dir(): base = candidate
             else:
-                raw_candidate = base / f"models--{model_name}"
+                raw_candidate = base / f"models--{model_name.replace('/', '--')}"
                 if raw_candidate.is_dir(): base = raw_candidate
     snapshots_dir = base / "snapshots"
     if snapshots_dir.is_dir():
@@ -46,22 +52,15 @@ def main():
     args = parser.parse_args()
 
     model_path = resolve_model_path(args.model_path, args.model_name)
-    print(f"--- 🚀 A4000 STABLE MODE: Loading from {model_path} ---")
+    print(f"--- 🚀 MULTI-GPU Qwen3 MoE SERVER: {model_path} ---")
 
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
-    )
-
-    # 1. التوكنايزر
+    # 1. تحميل التوكنايزر
+    print("--- ⏳ Loading Tokenizer... ---")
     try:
         tokenizer = AutoTokenizer.from_pretrained(
             model_path, 
             trust_remote_code=True, 
-            local_files_only=True,
-            fix_mistral_regex=True
+            local_files_only=True
         )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
@@ -69,39 +68,36 @@ def main():
         print(f"❌ Error loading tokenizer: {e}")
         return
 
-    # 2. الموديل
-    print("--- ⏳ Loading Model (Compressed for 16GB VRAM)... ---")
+    # 2. تحميل الموديل (توزيع تلقائي على الكروت)
+    print("--- ⏳ Loading MoE Model (Auto-Distributing across GPUs)... ---")
     try:
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            quantization_config=bnb_config,
-            device_map="auto",
+            torch_dtype="auto",       # Qwen3 يفضل auto لاختيار الأنسب
+            device_map="auto",        # <--- السر هنا: يوزع الحمل على كل الكروت
             trust_remote_code=True,
             local_files_only=True,
-            attn_implementation="flash_attention_2", 
-            low_cpu_mem_usage=True
+            attn_implementation="flash_attention_2" # سرعة H100
         )
-        print("--- ✅ Model Loaded Successfully ---")
+        print("--- ✅ Qwen3 MoE Loaded & Distributed! ---")
     except Exception as e:
         print(f"❌ Error loading model: {e}")
         return
 
-    class Handler(BaseHTTPRequestHandler):
-        # منع تسجيل كل طلب في الشاشة لتقليل الإزعاج
-        def log_message(self, format, *args):
-            pass
+    # طباعة خريطة التوزيع لنرى كيف تم تقسيم الموديل
+    if hasattr(model, "hf_device_map"):
+        print(f"ℹ️ GPU Map: {json.dumps(model.hf_device_map, indent=2)}")
 
+    model.eval()
+
+    class Handler(BaseHTTPRequestHandler):
         def _send_sse(self, payload):
             try:
                 data = f"data: {json.dumps(payload)}\n\n".encode("utf-8")
                 self.wfile.write(data)
                 self.wfile.flush()
                 return True
-            except (BrokenPipeError, ConnectionResetError):
-                # العميل قطع الاتصال، لا تفعل شيئاً وعد بقيمة False لإيقاف التوليد
-                return False
-            except Exception:
-                return False
+            except: return False
 
         def do_POST(self):
             if self.path == "/v1/chat/completions":
@@ -109,8 +105,12 @@ def main():
                     length = int(self.headers.get("Content-Length", 0))
                     body = json.loads(self.rfile.read(length).decode("utf-8"))
                     
-                    req_max = int(body.get("max_tokens", 512))
+                    req_max = int(body.get("max_tokens", 4096))
                     final_max_new_tokens = min(req_max, MAX_NEW_TOKENS_CAP)
+                    
+                    # بارامترات Qwen3 الخاصة (Sampling)
+                    req_temp = float(body.get("temperature", 0.7))
+                    req_top_p = float(body.get("top_p", 0.8))
 
                     messages = body.get("messages", [])
                     clean_msgs = []
@@ -125,12 +125,11 @@ def main():
 
                     prompt = tokenizer.apply_chat_template(clean_msgs, tokenize=False, add_generation_prompt=True)
                     
+                    # نقل البيانات للـ GPU (accelerate سيتولى الباقي)
                     inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-                    input_len = inputs.input_ids.shape[1]
                     
-                    # قص الإدخال الزائد لتسريع الاستجابة ومنع الـ Timeout
-                    if input_len > MAX_INPUT_TOKENS:
-                        print(f"✂️ Truncating input from {input_len} to {MAX_INPUT_TOKENS}...")
+                    # Truncation
+                    if inputs.input_ids.shape[1] > MAX_INPUT_TOKENS:
                         inputs.input_ids = inputs.input_ids[:, -MAX_INPUT_TOKENS:]
                         inputs.attention_mask = inputs.attention_mask[:, -MAX_INPUT_TOKENS:]
 
@@ -141,42 +140,29 @@ def main():
                         attention_mask=inputs.attention_mask,
                         streamer=streamer,
                         max_new_tokens=final_max_new_tokens,
-                        do_sample=False,
-                        use_cache=True    
+                        temperature=req_temp, 
+                        top_p=req_top_p,
+                        top_k=20,               # إعدادات Qwen3
+                        repetition_penalty=1.05,# إعدادات Qwen3
+                        do_sample=True,         # ضروري لـ MoE للإبداع
                     )
                     
                     thread = Thread(target=model.generate, kwargs=gen_kwargs)
                     thread.start()
 
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/event-stream")
-                    self.send_header("Cache-Control", "no-cache")
-                    self.end_headers()
-
                     chat_id = f"chatcmpl-{uuid.uuid4().hex}"
-                    client_connected = True
-                    
                     for new_text in streamer:
-                        if not client_connected: break
                         if not self._send_sse({
                             "id": chat_id,
                             "choices": [{"delta": {"content": new_text}, "index": 0, "finish_reason": None}]
-                        }): 
-                            client_connected = False
-                            break
+                        }): break 
                     
-                    if client_connected:
-                        try:
-                            self.wfile.write(b"data: [DONE]\n\n")
-                            self.wfile.flush()
-                        except (BrokenPipeError, ConnectionResetError):
-                            pass # تجاهل الخطأ عند النهاية
+                    self.wfile.write(b"data: [DONE]\n\n")
+                    self.wfile.flush()
                     
-                except (BrokenPipeError, ConnectionResetError):
-                    print("⚠️ Client disconnected early (Ignored).")
                 except Exception as e:
-                    print(f"⚠️ Server Error: {e}")
-                    # لا تحاول إرسال خطأ إذا كان الاتصال مقطوعاً
+                    print(f"⚠️ Error: {e}")
+                    self.send_error(500, str(e))
 
         def do_GET(self):
             if self.path == "/v1/models":
@@ -185,7 +171,7 @@ def main():
                 self.end_headers()
                 self.wfile.write(json.dumps({"data": [{"id": args.model_name}]}).encode())
 
-    print(f"--- 🚀 A4000 Stable Server Ready at http://{args.host}:{args.port}/v1 ---")
+    print(f"--- 🚀 Qwen3 Multi-GPU Server Ready at http://{args.host}:{args.port}/v1 ---")
     httpd = ThreadedHTTPServer((args.host, args.port), Handler)
     httpd.serve_forever()
 
