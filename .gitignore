@@ -12,6 +12,7 @@ drivers/
 packages_offline/
 *.tar.gz
 python_packages_*.tar.gz
+h100_packages/
 
 # Python
 __pycache__/
