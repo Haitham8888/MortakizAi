@@ -9,6 +9,18 @@ from socketserver import ThreadingMixIn
 from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 
+# إعدادات أداء مناسبة لـ H100
+try:
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    torch.set_float32_matmul_precision("high")
+    if hasattr(torch.backends.cuda, "enable_flash_sdp"):
+        torch.backends.cuda.enable_flash_sdp(True)
+        torch.backends.cuda.enable_mem_efficient_sdp(True)
+        torch.backends.cuda.enable_math_sdp(False)
+except Exception:
+    pass
+
 # --- 💎 Qwen3 MoE (الوحش الجديد) ---
 # تأكد أنك حملت الموديل بهذا الاسم في مجلد models_cache
 MODEL_NAME = "models--Qwen--Qwen2.5-Coder-7B-Instruct"
@@ -158,7 +170,12 @@ def main():
                         do_sample=True,         # ضروري لـ MoE للإبداع
                     )
                     
-                    thread = Thread(target=model.generate, kwargs=gen_kwargs)
+                    def _run_generate():
+                        with torch.inference_mode():
+                            with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+                                model.generate(**gen_kwargs)
+
+                    thread = Thread(target=_run_generate)
                     thread.start()
 
                     chat_id = f"chatcmpl-{uuid.uuid4().hex}"
