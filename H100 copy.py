@@ -97,11 +97,22 @@ def main():
                 self.wfile.write(data)
                 self.wfile.flush()
                 return True
-            except: return False
+            except (BrokenPipeError, ConnectionResetError):
+                return False
+            except Exception:
+                return False
+
+        def _begin_sse(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
 
         def do_POST(self):
             if self.path == "/v1/chat/completions":
                 try:
+                    self._begin_sse()
                     length = int(self.headers.get("Content-Length", 0))
                     body = json.loads(self.rfile.read(length).decode("utf-8"))
                     
@@ -156,13 +167,21 @@ def main():
                             "id": chat_id,
                             "choices": [{"delta": {"content": new_text}, "index": 0, "finish_reason": None}]
                         }): break 
-                    
-                    self.wfile.write(b"data: [DONE]\n\n")
-                    self.wfile.flush()
-                    
+
+                    try:
+                        self.wfile.write(b"data: [DONE]\n\n")
+                        self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError):
+                        return
+
+                except (BrokenPipeError, ConnectionResetError):
+                    return
                 except Exception as e:
                     print(f"⚠️ Error: {e}")
-                    self.send_error(500, str(e))
+                    try:
+                        self.send_error(500, str(e))
+                    except (BrokenPipeError, ConnectionResetError):
+                        return
 
         def do_GET(self):
             if self.path == "/v1/models":
