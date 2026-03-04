@@ -71,6 +71,7 @@ Thumbs.db
 Test Code/
 vllm_packages.tar.gz
 vllm_offline_packages/
+vllm_ai_setup.tar.gz
 
 # Temporary files
 tmp/
