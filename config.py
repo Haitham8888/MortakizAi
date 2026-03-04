@@ -1,132 +1,132 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-#                          مُرْتَكَز - MortakizAi Configuration
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                          MortakizAi Configuration
+# ===============================================================================
 
 import os
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              إعدادات السيرفر
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                              Server Settings
+# ===============================================================================
 
-# اسم المشروع
-PROJECT_NAME = "مُرْتَكَز - MortakizAi"
+# Project Name
+PROJECT_NAME = "MortakizAi"
 
-# البورت والعنوان
+# Host and Port configuration
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8080
 
-# مستوى التسجيل (debug, info, warning, error)
+# Logging level (debug, info, warning, error)
 LOG_LEVEL = "error"
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              إعدادات GPU
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                              GPU Settings
+# ===============================================================================
 
-# عدد كروت الشاشة المستخدمة (None = استخدام الكل، 1 = كرت واحد، 2 = كرتين، إلخ)
+# Number of GPUs to use (None = use all available, 1 = single GPU, etc.)
 MAX_GPU_COUNT = None
 
-# تفعيل تحسين تخصيص الذاكرة CUDA
+# Enable CUDA memory allocation optimization
 CUDA_MEMORY_OPTIMIZATION = True
 
-# الحد الأدنى من VRAM (GB) لاستخدام bfloat16 بدلاً من 4-bit quantization
+# VRAM threshold (GB) to prefer bfloat16 over 4-bit quantization
 VRAM_THRESHOLD_FOR_BFLOAT16 = 30
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              إعدادات النموذج المحلي
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                              Local Model Settings
+# ===============================================================================
 
-# مسارات البحث عن النموذج (بالترتيب)
+# List of paths to search for the model (in priority order)
 MODEL_PATH_OPTIONS = [
     "./models_cache/models--Qwen--Qwen2.5-Coder-7B-Instruct",
     "./qwen-coder"
 ]
 
-# اسم النموذج للعرض
+# Display name for the model in the UI/API
 MODEL_DISPLAY_NAME = "qwen2.5-coder-7b"
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              إعدادات التوليد (Generation)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                              Generation Settings
+# ===============================================================================
 
-# الحد الأقصى للـ tokens المولدة
+# Maximum number of tokens to generate per request
 MAX_NEW_TOKENS = 1024
 
-# درجة الحرارة (0.0 = دقيق جداً، 1.0 = إبداعي جداً)
+# Temperature (0.0 = deterministic, 1.0 = highly creative)
 TEMPERATURE = 0.7
 
-# تفعيل العينة العشوائية
+# Enable random sampling
 DO_SAMPLE = True
 
-# Top-P (nucleus sampling) - None لتعطيله
+# Top-P (nucleus sampling) - set to None to disable
 TOP_P = None
 
-# Top-K - None لتعطيله  
+# Top-K - set to None to disable  
 TOP_K = None
 
-# عقوبة التكرار (1.0 = بدون عقوبة)
+# Repetition penalty (1.0 = no penalty)
 REPETITION_PENALTY = 1.0
 
-# علامات التوقف
+# Generation stop tokens
 STOP_TOKENS = ["<|im_end|>", "<|endoftext|>", "###"]
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              إعدادات OpenRouter (اختياري)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                              OpenRouter Settings (Optional)
+# ===============================================================================
 
-# تفعيل OpenRouter بدلاً من النموذج المحلي
+# Use OpenRouter cloud API instead of the local model
 USE_OPENROUTER = False
 
-# مفتاح API (يفضل استخدام متغير البيئة OPENROUTER_API_KEY)
+# API Key (recommened to use OPENROUTER_API_KEY environment variable)
 OPENROUTER_API_KEY = os.environ.get(
     "OPENROUTER_API_KEY", 
     "sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 )
 
-# رابط API
+# API endpoint URL
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# معرف النموذج في OpenRouter
+# Model ID to use on OpenRouter
 OPENROUTER_MODEL_ID = "qwen/qwen3-coder-30b-a3b-instruct"
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              إعدادات System Prompt
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                              System Prompt Settings
+# ===============================================================================
 
-# رسالة النظام الافتراضية
+# Default system instruction for the AI
 DEFAULT_SYSTEM_PROMPT = """You are a helpful coding assistant. Always preserve proper code formatting, indentation, and whitespace in your responses."""
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              إعدادات الملفات والتخزين
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                              Files and Storage Settings
+# ===============================================================================
 
-# المجلد الثابت للواجهة
+# Static files directory for the frontend
 STATIC_FOLDER = "static"
 
-# مجلد البيانات
+# Data storage directory
 DATA_FOLDER = "data"
 
-# ملف سجل المحادثات
+# Chat history file name
 HISTORY_FILE = "history.json"
 
-# الحد الأقصى لحجم الملف المرفوع (بالحروف)
+# Maximum length for uploaded file content (characters)
 MAX_FILE_CONTENT_LENGTH = 12000
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              إعدادات متقدمة
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#                              Advanced Options
+# ===============================================================================
 
-# تفعيل trust_remote_code للنموذج
+# Enable trust_remote_code for model loading
 TRUST_REMOTE_CODE = True
 
-# تفعيل fix_mistral_regex للـ tokenizer
+# Apply Mistral-specific regex fixes to the tokenizer
 FIX_MISTRAL_REGEX = True
 
-# تنظيف الذاكرة بعد كل طلب
+# Clear CUDA cache after each request to optimize memory usage
 CLEANUP_MEMORY_AFTER_REQUEST = True
