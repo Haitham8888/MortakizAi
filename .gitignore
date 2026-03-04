@@ -69,6 +69,8 @@ Thumbs.db
 
 # Test Code
 Test Code/
+vllm_packages.tar.gz
+vllm_offline_packages/
 
 # Temporary files
 tmp/
